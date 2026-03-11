@@ -25,8 +25,8 @@
  *   5. Draw rotatedSrc onto output canvas, crop, apply filters → call onApply()
  */
 
-import React, { useState, useRef, useCallback, useEffect } from "react";
-import ReactCrop, { type Crop, type PixelCrop, centerCrop, makeAspectCrop } from "react-image-crop";
+import React, { useState, useRef, useCallback } from "react";
+import ReactCrop, { type Crop, type PixelCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -45,13 +45,13 @@ interface Adjustments {
 }
 
 const DEFAULT_ADJ: Adjustments = { brightness: 100, contrast: 100, saturation: 100 };
-const ASPECT = 1; // 1:1 square crop
 
-function centerAspectCrop(displayW: number, displayH: number): Crop {
-  return centerCrop(
-    makeAspectCrop({ unit: "%", width: 85 }, ASPECT, displayW, displayH),
-    displayW, displayH
-  );
+/** Default crop: 85% of the image, centered, no aspect lock */
+function centerFreeCrop(displayW: number, displayH: number): Crop {
+  const pct = 85;
+  const x = (100 - pct) / 2;
+  const y = (100 - pct) / 2;
+  return { unit: "%", x, y, width: pct, height: pct };
 }
 
 /** Rotate a loaded HTMLImageElement by degrees and return a data URL */
@@ -93,7 +93,7 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
   // When the crop image loads (or rotatedSrc changes), set a centered default crop
   const onCropImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const { width, height } = e.currentTarget;
-    setCrop(centerAspectCrop(width, height));
+    setCrop(centerFreeCrop(width, height));
     setCompletedCrop(undefined);
   }, []);
 
@@ -267,7 +267,6 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                   crop={crop}
                   onChange={(c) => setCrop(c)}
                   onComplete={(c) => setCompletedCrop(c)}
-                  aspect={ASPECT}
                   style={{ maxWidth: "100%", maxHeight: "60vh" }}
                 >
                   <img
@@ -330,13 +329,13 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                       ✂️ Crop
                     </Label>
                     <p style={{ fontSize: "11px", color: "#8a7a6a", margin: 0, lineHeight: 1.5 }}>
-                      Drag the handles to select the area you want. Locked to square — best for animal portraits.
+                      Drag the handles to select any area. Portrait, square, or landscape — all work on the card.
                     </p>
                     <button
                       onClick={() => {
                         const img = cropImgRef.current;
                         if (img) {
-                          setCrop(centerAspectCrop(img.width, img.height));
+                          setCrop(centerFreeCrop(img.width, img.height));
                         }
                         setCompletedCrop(undefined);
                       }}
