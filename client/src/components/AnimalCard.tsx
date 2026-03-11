@@ -30,15 +30,26 @@ export interface AnimalCardData {
   funFact?: string;       // short highlighted callout, e.g. "Loves blueberries!"
 }
 
-const SPECIES_COLORS: Record<string, { bg: string; text: string; label: string; icon: string }> = {
-  rabbit:        { bg: "#4BBFB8", text: "#fff",     label: "Rabbit",       icon: "🐰" },
-  "guinea pig":  { bg: "#F4A88A", text: "#4a2e1a",  label: "Guinea Pig",   icon: "🐹" },
-  hamster:       { bg: "#E8879A", text: "#fff",      label: "Hamster",      icon: "🐹" },
-  rat:           { bg: "#7CB87C", text: "#fff",      label: "Rat",          icon: "🐀" },
-  mouse:         { bg: "#A89BD4", text: "#fff",      label: "Mouse",        icon: "🐭" },
-  chinchilla:    { bg: "#8BAED4", text: "#fff",      label: "Chinchilla",   icon: "🐾" },
-  gerbil:        { bg: "#D4A85A", text: "#fff",      label: "Gerbil",       icon: "🐿️" },
-  other:         { bg: "#2AADA8", text: "#fff",      label: "Small Animal", icon: "🐾" },
+const SPECIES_ICONS: Record<string, string> = {
+  rabbit:       "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-rabbit-DjdHtDr2ntE7CyriHdqmLx.webp",
+  "guinea pig": "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-guinea-pig-hEARVnZcw5PiPVayjM2AzG.webp",
+  hamster:      "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-hamster-fdvg2ThspDxNQD7eojKiGb.webp",
+  rat:          "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-rat-GgrHhEQFM5NKdeA5xAZFZX.webp",
+  mouse:        "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-mouse-hR8G9ZHBM5xZ8gCvK497L5.webp",
+  chinchilla:   "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-chinchilla-6FdBkEAcp7gWTmTfZPSjky.webp",
+  gerbil:       "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-gerbil-RkaHJEJQeMKiNb3brFSzXA.webp",
+  other:        "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-other-c52UFoxERLimRyevans5ky.webp",
+};
+
+const SPECIES_COLORS: Record<string, { bg: string; text: string; label: string }> = {
+  rabbit:        { bg: "#4BBFB8", text: "#fff",     label: "Rabbit" },
+  "guinea pig":  { bg: "#F4A88A", text: "#4a2e1a",  label: "Guinea Pig" },
+  hamster:       { bg: "#E8879A", text: "#fff",      label: "Hamster" },
+  rat:           { bg: "#7CB87C", text: "#fff",      label: "Rat" },
+  mouse:         { bg: "#A89BD4", text: "#fff",      label: "Mouse" },
+  chinchilla:    { bg: "#8BAED4", text: "#fff",      label: "Chinchilla" },
+  gerbil:        { bg: "#D4A85A", text: "#fff",      label: "Gerbil" },
+  other:         { bg: "#2AADA8", text: "#fff",      label: "Small Animal" },
 };
 
 const ADOPTION_STATUS: Record<string, { label: string; bg: string; text: string; icon: string }> = {
@@ -50,6 +61,11 @@ const ADOPTION_STATUS: Record<string, { label: string; bg: string; text: string;
 function getSpeciesStyle(species: string) {
   const key = species.toLowerCase();
   return SPECIES_COLORS[key] || SPECIES_COLORS["other"];
+}
+
+function getSpeciesIcon(species: string): string {
+  const key = species.toLowerCase();
+  return SPECIES_ICONS[key] || SPECIES_ICONS["other"];
 }
 
 function HeartHP({ value }: { value: number }) {
@@ -342,7 +358,7 @@ export default function AnimalCard({ data, cardRef, logoUrl, cardBgUrl }: Animal
             <div style={{
               display: "flex",
               alignItems: "center",
-              gap: "5px",
+              gap: "6px",
               fontSize: "16px",
               color: speciesStyle.text,
               opacity: 0.9,
@@ -350,7 +366,20 @@ export default function AnimalCard({ data, cardRef, logoUrl, cardBgUrl }: Animal
               letterSpacing: "0.5px",
               marginTop: "2px",
             }}>
-              <span style={{ fontSize: "18px", lineHeight: 1 }}>{speciesStyle.icon}</span>
+              <img
+                src={getSpeciesIcon(data.species)}
+                alt={speciesStyle.label}
+                crossOrigin="anonymous"
+                style={{
+                  width: "26px",
+                  height: "26px",
+                  objectFit: "contain",
+                  borderRadius: "50%",
+                  background: "rgba(255,255,255,0.35)",
+                  padding: "2px",
+                  flexShrink: 0,
+                }}
+              />
               {speciesStyle.label}
             </div>
           </div>
