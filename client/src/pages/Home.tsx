@@ -21,14 +21,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
-import AnimalCard, { AnimalCardData } from "@/components/AnimalCard";
+import AnimalCard, { AnimalCardBack, AnimalCardData } from "@/components/AnimalCard";
 import PhotoEditor from "@/components/PhotoEditor";
 import { useCardDownload } from "@/hooks/useCardDownload";
 
 const LOGO_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/logo-square_17e2654f.png";
 const CARD_BG_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/card-bg-texture-NUuh8tVs2vLnJ3cEafbiB8.webp";
 const HERO_BG_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/app-hero-bg-CWeUKfCSYNAGPYj2aoU9jQ.webp";
-const CARD_BACK_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/card-back-design-9EfXenfGhBLKc4MrnhnWvn.webp";
+// Card back is now rendered as a React component using the real HALT logo
 
 const SPECIES_OPTIONS = ["Rabbit", "Guinea Pig", "Hamster", "Rat", "Mouse", "Chinchilla", "Gerbil", "Other"];
 
@@ -618,7 +618,7 @@ export default function Home() {
                     />
                   </div>
                 </div>
-                {/* Back */}
+                {/* Back — rendered with real HALT logo */}
                 <div style={{
                   position: "absolute",
                   width: "300px",
@@ -626,19 +626,17 @@ export default function Home() {
                   backfaceVisibility: "hidden",
                   WebkitBackfaceVisibility: "hidden",
                   transform: "rotateY(180deg)",
+                  overflow: "hidden",
+                  borderRadius: "12px",
                 }}>
-                  <img
-                    src={CARD_BACK_URL}
-                    alt="Card Back"
-                    style={{
-                      width: "300px",
-                      height: "420px",
-                      objectFit: "cover",
-                      borderRadius: "12px",
-                      boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
-                      display: "block",
-                    }}
-                  />
+                  <div style={{
+                    transform: "scale(0.5)",
+                    transformOrigin: "top left",
+                    width: "600px",
+                    height: "840px",
+                  }}>
+                    <AnimalCardBack />
+                  </div>
                 </div>
               </div>
             </div>
