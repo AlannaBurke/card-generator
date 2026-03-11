@@ -18,6 +18,22 @@ import { toast } from "sonner";
 import type { AnimalCardData } from "@/components/AnimalCard";
 import { HALT_LOGO_URL } from "@/components/AnimalCard";
 
+// ─── Species icon CDN URLs (must mirror AnimalCard.tsx) ──────────────────────
+const SPECIES_ICONS: Record<string, string> = {
+  rabbit:       "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-rabbit_b6677b67.png",
+  "guinea pig": "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-guinea-pig_58f3acd1.png",
+  hamster:      "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-hamster_9adc0dbd.png",
+  rat:          "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-rat_05c56a03.png",
+  mouse:        "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-mouse_98e84e11.png",
+  chinchilla:   "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-chinchilla_eb08eb51.png",
+  gerbil:       "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-gerbil_a994d4a5.png",
+  other:        "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-other_8f053e69.png",
+};
+
+function getSpeciesIconUrl(species: string): string {
+  return SPECIES_ICONS[species?.toLowerCase()] ?? SPECIES_ICONS.other;
+}
+
 // Species colours (must mirror AnimalCard.tsx)
 const SPECIES_COLORS: Record<string, { bg: string; text: string; tagText: string; label: string }> = {
   rabbit:        { bg: "#4BBFB8", text: "#fff",     tagText: "#1a6e6a", label: "Rabbit" },
@@ -113,9 +129,10 @@ async function drawCard(data: AnimalCardData, cardBgUrl: string): Promise<Blob> 
   const ctx = canvas.getContext("2d")!;
 
   // Pre-load all images as data URLs
-  const [bgDataUrl, logoDataUrl] = await Promise.all([
+  const [bgDataUrl, logoDataUrl, speciesIconDataUrl] = await Promise.all([
     toDataUrl(cardBgUrl),
     toDataUrl(HALT_LOGO_URL),
+    toDataUrl(getSpeciesIconUrl(data.species)),
   ]);
 
   let photoImg: HTMLImageElement | null = null;
@@ -130,6 +147,8 @@ async function drawCard(data: AnimalCardData, cardBgUrl: string): Promise<Blob> 
 
   const bgImg = await loadImage(bgDataUrl);
   const logoImg = await loadImage(logoDataUrl);
+  let speciesIconImg: HTMLImageElement | null = null;
+  try { speciesIconImg = await loadImage(speciesIconDataUrl); } catch { /* no icon */ }
   const sp = getSpeciesStyle(data.species);
 
   // ── 1. Card background ────────────────────────────────────────────────────
@@ -178,10 +197,24 @@ async function drawCard(data: AnimalCardData, cardBgUrl: string): Promise<Blob> 
     ctx.globalAlpha = 1;
   }
 
-  // Species label
+  // Species icon + label
+  const iconSize = 24 * s;
+  const iconX = PAD + 14 * s;
+  const iconY = headerY + 46 * s;
+  if (speciesIconImg) {
+    ctx.save();
+    // Draw circular clip for the icon
+    ctx.beginPath();
+    ctx.arc(iconX + iconSize / 2, iconY + iconSize / 2, iconSize / 2, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.fillStyle = "rgba(255,255,255,0.3)";
+    ctx.fill();
+    ctx.drawImage(speciesIconImg, iconX, iconY, iconSize, iconSize);
+    ctx.restore();
+  }
   ctx.font = `bold ${15 * s}px Arial, sans-serif`;
   ctx.fillStyle = sp.text;
-  ctx.fillText(sp.label, PAD + 14 * s + 28 * s, headerY + 52 * s);
+  ctx.fillText(sp.label, iconX + iconSize + 5 * s, headerY + 52 * s);
 
   // HP text
   ctx.font = `bold ${20 * s}px Arial, sans-serif`;
@@ -189,7 +222,9 @@ async function drawCard(data: AnimalCardData, cardBgUrl: string): Promise<Blob> 
   ctx.fillStyle = sp.text;
   ctx.fillText(`${data.hp ?? 75} HP`, PAD + INNER_W - 14 * s, headerY + 12 * s);
 
-  // Hearts
+  // Hearts — always pink/red fill with white outline
+  const HEART_FILL = "#e8365d";
+  const HEART_STROKE = "rgba(255,255,255,0.9)";
   const filled = Math.round(((data.hp ?? 75) / 100) * 5);
   const hSize = 16 * s;
   const heartsRight = PAD + INNER_W - 14 * s;
@@ -197,9 +232,9 @@ async function drawCard(data: AnimalCardData, cardBgUrl: string): Promise<Blob> 
   for (let i = 4; i >= 0; i--) {
     const hx = heartsRight - (4 - i) * (hSize + 3 * s) - hSize;
     ctx.save();
-    ctx.globalAlpha = i < filled ? 1 : 0.35;
-    ctx.strokeStyle = sp.text;
-    ctx.fillStyle = sp.text;
+    ctx.globalAlpha = i < filled ? 1 : 0.4;
+    ctx.strokeStyle = i < filled ? HEART_STROKE : "rgba(255,255,255,0.5)";
+    ctx.fillStyle = HEART_FILL;
     ctx.lineWidth = 1.5 * s;
     const cx = hx + hSize / 2;
     const cy = heartsY + hSize / 2;

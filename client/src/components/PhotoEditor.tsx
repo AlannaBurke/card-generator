@@ -2,22 +2,30 @@
  * PhotoEditor — Modal photo editing component
  * Design: Cottagecore Pokédex — matches HALT brand
  *
- * KEY FIX: CSS transform:rotate() was used to show rotation, but react-image-crop
- * draws its overlay on the unrotated element — so crop coordinates were in the
- * wrong space. The fix: when the user rotates, we immediately render the rotated
- * image to a canvas and use that canvas's data URL as the <img> src. This means
- * the crop UI always operates on the already-rotated image, so coordinates are
- * always correct. No CSS rotation is ever applied to the crop image.
+ * CROP IMPLEMENTATION — WHY PREVIOUS VERSIONS WERE WRONG:
  *
- * Pipeline:
+ * react-image-crop reports crop coordinates in the DISPLAYED image's pixel space
+ * (i.e., the pixels on screen, not the natural/intrinsic pixels of the image file).
+ * To convert to natural pixels you must use:
+ *
+ *   scaleX = img.naturalWidth  / img.getBoundingClientRect().width
+ *   scaleY = img.naturalHeight / img.getBoundingClientRect().height
+ *
+ * Using img.clientWidth / img.clientHeight is WRONG when the image is inside a
+ * flex/scroll container that may add padding or when the ReactCrop wrapper has
+ * its own size constraints. getBoundingClientRect() gives the true rendered size.
+ *
+ * ROTATION PIPELINE:
  *   1. User uploads → originalSrc (data URL)
  *   2. User rotates → rotatedSrc = canvas.toDataURL() of rotated image
- *   3. ReactCrop operates on rotatedSrc → completedCrop in rotatedSrc pixel space
- *   4. Apply: draw rotatedSrc onto canvas, crop to completedCrop, apply filters
- *   5. Call onApply(result data URL)
+ *      (the crop UI always operates on the already-rotated image, so coordinates
+ *       are always in the correct post-rotation space)
+ *   3. ReactCrop operates on rotatedSrc → completedCrop in display pixel space
+ *   4. Apply: scale completedCrop to natural pixels using getBoundingClientRect()
+ *   5. Draw rotatedSrc onto output canvas, crop, apply filters → call onApply()
  */
 
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import ReactCrop, { type Crop, type PixelCrop, centerCrop, makeAspectCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { Button } from "@/components/ui/button";
@@ -39,10 +47,10 @@ interface Adjustments {
 const DEFAULT_ADJ: Adjustments = { brightness: 100, contrast: 100, saturation: 100 };
 const ASPECT = 1; // 1:1 square crop
 
-function centerAspectCrop(w: number, h: number): Crop {
+function centerAspectCrop(displayW: number, displayH: number): Crop {
   return centerCrop(
-    makeAspectCrop({ unit: "%", width: 85 }, ASPECT, w, h),
-    w, h
+    makeAspectCrop({ unit: "%", width: 85 }, ASPECT, displayW, displayH),
+    displayW, displayH
   );
 }
 
@@ -67,10 +75,10 @@ function rotateToDataUrl(img: HTMLImageElement, degrees: number): string {
 }
 
 export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps) {
-  // originalSrc never changes — it's the source uploaded by the user
+  // originalImgRef: hidden img element that always holds the original upload
   const originalImgRef = useRef<HTMLImageElement | null>(null);
 
-  // rotatedSrc is what the crop UI shows — updated whenever rotation changes
+  // rotatedSrc: what the ReactCrop UI shows — updated on each rotation
   const [rotatedSrc, setRotatedSrc] = useState<string>(src);
   const [rotation, setRotation] = useState(0);
 
@@ -79,30 +87,24 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
   const [adj, setAdj] = useState<Adjustments>(DEFAULT_ADJ);
   const [activeTab, setActiveTab] = useState<"crop" | "adjust">("crop");
 
+  // cropImgRef: the <img> inside ReactCrop — used for getBoundingClientRect()
   const cropImgRef = useRef<HTMLImageElement>(null);
 
-  // When the original image loads (hidden), we can rotate it
-  const onOriginalLoad = useCallback(() => {
-    // Initial state: no rotation, so rotatedSrc = src
-    setRotatedSrc(src);
-  }, [src]);
-
-  // When the crop image loads, set default centered crop
+  // When the crop image loads (or rotatedSrc changes), set a centered default crop
   const onCropImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const { width, height } = e.currentTarget;
     setCrop(centerAspectCrop(width, height));
     setCompletedCrop(undefined);
   }, []);
 
+  // Rotate: render original to canvas at new angle, use result as crop source
   const rotate = useCallback((dir: "cw" | "ccw") => {
     const origImg = originalImgRef.current;
-    if (!origImg) return;
+    if (!origImg || !origImg.complete || origImg.naturalWidth === 0) return;
     const newRotation = (rotation + (dir === "cw" ? 90 : -90) + 360) % 360;
     setRotation(newRotation);
-    // Rotate the original image to a new data URL and use that as crop source
     const newSrc = rotateToDataUrl(origImg, newRotation);
     setRotatedSrc(newSrc);
-    // Reset crop so it re-centers on the new dimensions
     setCrop(undefined);
     setCompletedCrop(undefined);
   }, [rotation]);
@@ -117,11 +119,17 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
       return;
     }
 
-    // The crop image is the rotated version — coordinates are already correct
-    const displayW = img.clientWidth;
-    const displayH = img.clientHeight;
+    // ── KEY FIX: use getBoundingClientRect() for the true rendered size ──────
+    const rect = img.getBoundingClientRect();
+    const displayW = rect.width;
+    const displayH = rect.height;
     const natW = img.naturalWidth;
     const natH = img.naturalHeight;
+
+    if (displayW === 0 || displayH === 0 || natW === 0 || natH === 0) {
+      console.error("PhotoEditor: image has zero dimensions", { displayW, displayH, natW, natH });
+      return;
+    }
 
     const scaleX = natW / displayW;
     const scaleY = natH / displayH;
@@ -157,7 +165,7 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
 
     const result = output.toDataURL("image/jpeg", 0.92);
     if (!result || result === "data:,") {
-      console.error("PhotoEditor: canvas produced empty result — image may not be loaded");
+      console.error("PhotoEditor: canvas produced empty result");
       return;
     }
     onApply(result);
@@ -167,14 +175,12 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
 
   return (
     <>
-      {/* Hidden original image for rotation math */}
+      {/* Hidden original image for rotation math — must NOT have crossOrigin if src is data URL */}
       <img
         ref={originalImgRef}
         src={src}
         alt=""
-        onLoad={onOriginalLoad}
         style={{ position: "absolute", left: "-99999px", top: 0, width: "1px", height: "1px", opacity: 0 }}
-        crossOrigin="anonymous"
       />
 
       <div
@@ -210,6 +216,7 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            flexShrink: 0,
           }}>
             <h3 style={{ fontFamily: "'Fredoka One', cursive", fontSize: "20px", color: "#fff", margin: 0 }}>
               ✂️ Edit Photo
@@ -221,7 +228,7 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
           </div>
 
           {/* Tab bar */}
-          <div style={{ display: "flex", borderBottom: "1.5px solid rgba(42,173,168,0.2)", background: "rgba(255,255,255,0.6)" }}>
+          <div style={{ display: "flex", borderBottom: "1.5px solid rgba(42,173,168,0.2)", background: "rgba(255,255,255,0.6)", flexShrink: 0 }}>
             {(["crop", "adjust"] as const).map((tab) => (
               <button key={tab} onClick={() => setActiveTab(tab)} style={{
                 flex: 1,
@@ -286,7 +293,6 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                     filter: filterStyle,
                     borderRadius: "8px",
                     display: "block",
-                    transition: "filter 0.15s",
                   }}
                 />
               )}
@@ -327,7 +333,13 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                       Drag the handles to select the area you want. Locked to square — best for animal portraits.
                     </p>
                     <button
-                      onClick={() => { setCrop(undefined); setCompletedCrop(undefined); }}
+                      onClick={() => {
+                        const img = cropImgRef.current;
+                        if (img) {
+                          setCrop(centerAspectCrop(img.width, img.height));
+                        }
+                        setCompletedCrop(undefined);
+                      }}
                       style={{ ...btnStyle, marginTop: "8px", width: "100%" }}
                     >
                       Reset Crop
@@ -391,6 +403,7 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
             justifyContent: "flex-end",
             borderTop: "1.5px solid rgba(42,173,168,0.15)",
             background: "rgba(255,255,255,0.8)",
+            flexShrink: 0,
           }}>
             <Button variant="outline" onClick={onClose} style={{ borderColor: "#c8dedd", color: "#6a8a88", borderRadius: "10px" }}>
               Cancel

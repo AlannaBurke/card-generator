@@ -19,14 +19,14 @@ import React from "react";
 
 // ─── Species icon CDN URLs ────────────────────────────────────────────────────
 const SPECIES_ICONS: Record<string, string> = {
-  rabbit:       "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-rabbit_aabe631f.png",
-  "guinea pig": "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-guinea-pig_9ad6088b.png",
-  hamster:      "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-hamster_0a36674e.png",
-  rat:          "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-rat_f12fca22.png",
-  mouse:        "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-mouse_1746180c.png",
-  chinchilla:   "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-chinchilla_ed4d9dae.png",
-  gerbil:       "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-gerbil_2ef40f95.png",
-  other:        "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-other_f35378d1.png",
+  rabbit:       "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-rabbit_b6677b67.png",
+  "guinea pig": "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-guinea-pig_58f3acd1.png",
+  hamster:      "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-hamster_9adc0dbd.png",
+  rat:          "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-rat_05c56a03.png",
+  mouse:        "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-mouse_98e84e11.png",
+  chinchilla:   "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-chinchilla_eb08eb51.png",
+  gerbil:       "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-gerbil_a994d4a5.png",
+  other:        "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-other_8f053e69.png",
 };
 
 function getSpeciesIcon(species: string): string {
@@ -60,12 +60,20 @@ const ADOPTION_STATUS: Record<string, { label: string; icon: string; bg: string;
 };
 
 // ─── Heart HP display ─────────────────────────────────────────────────────────
-function HeartHP({ value, textColor }: { value: number; textColor: string }) {
+const HEART_FILL_COLOR = "#e8365d";   // vivid pink-red for all species
+const HEART_STROKE_COLOR = "rgba(255,255,255,0.9)"; // white outline for contrast on any header bg
+
+function HeartHP({ value }: { value: number }) {
   const filled = Math.round((value / 100) * 5);
   return (
     <div style={{ display: "flex", gap: "3px" }}>
       {Array.from({ length: 5 }).map((_, i) => (
-        <svg key={i} width="18" height="18" viewBox="0 0 24 24" fill={i < filled ? textColor : "none"} stroke={textColor} strokeWidth="2" style={{ opacity: i < filled ? 1 : 0.4 }}>
+        <svg key={i} width="18" height="18" viewBox="0 0 24 24"
+          fill={i < filled ? HEART_FILL_COLOR : "none"}
+          stroke={i < filled ? HEART_STROKE_COLOR : "rgba(255,255,255,0.5)"}
+          strokeWidth="2"
+          style={{ opacity: i < filled ? 1 : 0.45 }}
+        >
           <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
         </svg>
       ))}
@@ -240,7 +248,7 @@ export default function AnimalCard({ data, cardRef, cardBgUrl }: AnimalCardProps
           {/* Right: HP */}
           <div style={{ textAlign: "right" }}>
             <div style={{ fontSize: "10px", color: speciesStyle.text, opacity: 0.9, fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", marginBottom: "3px" }}>Friendliness</div>
-            <HeartHP value={hp} textColor={speciesStyle.text} />
+            <HeartHP value={hp} />
             <div style={{ fontFamily: "'Fredoka One', cursive", fontSize: "20px", color: speciesStyle.text, marginTop: "2px", textShadow: "0 1px 3px rgba(0,0,0,0.2)" }}>{hp} HP</div>
           </div>
         </div>
