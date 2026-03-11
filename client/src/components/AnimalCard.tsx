@@ -9,7 +9,7 @@
  *   PHOTO        — 380px (large, dominant — the star of the card)
  *   Stats row    — 64px  (sex / age / weight)
  *   Tags + fact  — auto  (personality pills + fun fact)
- *   Bio          — 2 lines max
+ *   Bio          — 4 lines max
  *   Footer bar   — 52px  (logo left, URL right)
  *
  * Background: botanical texture at 60% opacity + light cream overlay
@@ -255,9 +255,8 @@ export default function AnimalCard({ data, cardRef, cardBgUrl }: AnimalCardProps
 
         {/* PHOTO — dominant, large */}
         <div style={{
-          flex: "1 1 auto",
-          minHeight: "320px",
-          maxHeight: "420px",
+          flex: "0 0 auto",
+          height: "260px",
           borderRadius: "14px",
           overflow: "hidden",
           border: `3px solid ${speciesStyle.bg}99`,
@@ -332,7 +331,7 @@ export default function AnimalCard({ data, cardRef, cardBgUrl }: AnimalCardProps
         {/* BIO — 2 lines max, only if no fun fact OR if bio is set */}
         {data.bio && (
           <div style={{ background: "rgba(255,255,255,0.75)", borderRadius: "10px", padding: "6px 12px", border: `1.5px solid ${speciesStyle.bg}33`, flexShrink: 0 }}>
-            <p style={{ fontSize: "12px", lineHeight: 1.45, color: "#4a3c2e", margin: 0, fontStyle: "italic", fontWeight: 600, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+            <p style={{ fontSize: "12px", lineHeight: 1.45, color: "#4a3c2e", margin: 0, fontStyle: "italic", fontWeight: 600, display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
               {data.bio}
             </p>
           </div>

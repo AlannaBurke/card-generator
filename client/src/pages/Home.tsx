@@ -498,17 +498,17 @@ export default function Home() {
             <div>
               <Label style={{ fontWeight: 700, color: "#4a3c2e", fontSize: "13px", marginBottom: "6px", display: "flex", justifyContent: "space-between" }}>
                 <span>📖 Bio / Story</span>
-                <span style={{ fontWeight: 400, color: formData.bio.length > 160 ? "#E8879A" : "#8a7a6a" }}>{formData.bio.length}/160</span>
+                <span style={{ fontWeight: 400, color: formData.bio.length > 220 ? "#E8879A" : "#8a7a6a" }}>{formData.bio.length}/240</span>
               </Label>
               <Textarea
                 placeholder="Tell their story! How did they come to the sanctuary? What makes them special?"
                 value={formData.bio}
                 onChange={(e) => updateField("bio", e.target.value)}
-                maxLength={160}
+                maxLength={240}
                 rows={3}
                 style={{ borderColor: "#c8dedd", borderRadius: "10px", resize: "none" }}
               />
-              <p style={{ fontSize: "11px", color: "#8a7a6a", margin: "3px 0 0", lineHeight: 1.4 }}>3 lines max on the card</p>
+              <p style={{ fontSize: "11px", color: "#8a7a6a", margin: "3px 0 0", lineHeight: 1.4 }}>4 lines max on the card</p>
             </div>
 
             {/* ── Friendliness HP ── */}
