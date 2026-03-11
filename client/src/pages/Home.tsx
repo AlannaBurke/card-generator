@@ -39,6 +39,23 @@ const ADOPTION_STATUS_OPTIONS = [
   { value: "resident", label: "🌟 Sanctuary Resident" },
 ];
 
+const DEMO_PHOTO_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/demo-rabbit-biscuit-eA5imemhvgwxmWPSVtkUXb.webp";
+
+const DEMO_DATA: AnimalCardData = {
+  name: "Biscuit",
+  species: "Rabbit",
+  sex: "Female",
+  age: "2 years",
+  weight: "3.4 lbs",
+  personality: "Curious, Gentle, Sassy, Loves cuddles",
+  bio: "Biscuit came to us after being found alone in a park. She took a little time to warm up, but now she binkies every morning and demands head scratches on her own terms.",
+  photoUrl: DEMO_PHOTO_URL,
+  hp: 82,
+  cardNumber: "001",
+  adoptionStatus: "available",
+  funFact: "Binkies every morning when she hears the veggie bag!",
+};
+
 const DEFAULT_DATA: AnimalCardData = {
   name: "",
   species: "Rabbit",
@@ -132,6 +149,12 @@ export default function Home() {
   const handlePrintSheet = () => {
     sessionStorage.setItem("halt-card-data", JSON.stringify(formData));
     navigate("/print");
+  };
+
+  const handleLoadDemo = () => {
+    setFormData(DEMO_DATA);
+    setEditorSrc(null);
+    toast.success("Demo loaded — meet Biscuit! 🐰");
   };
 
   const handleReset = () => {
@@ -508,6 +531,26 @@ export default function Home() {
             </div>
 
             {/* ── Action Buttons ── */}
+            {/* ── Demo loader ── */}
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: "2px" }}>
+              <Button
+                onClick={handleLoadDemo}
+                variant="outline"
+                style={{
+                  borderRadius: "12px",
+                  borderColor: "#F4A88A",
+                  color: "#b05a2a",
+                  fontFamily: "'Baloo 2', cursive",
+                  fontWeight: 700,
+                  fontSize: "13px",
+                  background: "rgba(244,168,138,0.10)",
+                  width: "100%",
+                }}
+              >
+                🐰 Load Demo Animal
+              </Button>
+            </div>
+
             <div style={{ display: "flex", gap: "10px", marginTop: "4px", flexWrap: "wrap" }}>
               <Button
                 onClick={handleDownload}
