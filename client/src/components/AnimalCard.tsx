@@ -19,14 +19,14 @@ import React from "react";
 
 // ─── Species icon CDN URLs ────────────────────────────────────────────────────
 const SPECIES_ICONS: Record<string, string> = {
-  rabbit:       "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-rabbit-Fz3FmJhvEQsHRLkEKJPFUk.webp",
-  "guinea pig": "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-guinea-pig-JZcVCpFVBVXhQAiPxzXdDK.webp",
-  hamster:      "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-hamster-Nk7YGVbvBFJtCFNfGbFDCG.webp",
-  rat:          "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-rat-CXJnBDJcNFXcQKzFJMhGDK.webp",
-  mouse:        "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-mouse-LKzJDFVbNFXcQKzFJMhGDK.webp",
-  chinchilla:   "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-chinchilla-RkaHJEJQeMKiNb3brFSzXA.webp",
-  gerbil:       "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-gerbil-RkaHJEJQeMKiNb3brFSzXA.webp",
-  other:        "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-other-c52UFoxERLimRyevans5ky.webp",
+  rabbit:       "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-rabbit_aabe631f.png",
+  "guinea pig": "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-guinea-pig_9ad6088b.png",
+  hamster:      "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-hamster_0a36674e.png",
+  rat:          "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-rat_f12fca22.png",
+  mouse:        "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-mouse_1746180c.png",
+  chinchilla:   "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-chinchilla_ed4d9dae.png",
+  gerbil:       "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-gerbil_2ef40f95.png",
+  other:        "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/icon-other_f35378d1.png",
 };
 
 function getSpeciesIcon(species: string): string {
@@ -338,31 +338,30 @@ export default function AnimalCard({ data, cardRef, cardBgUrl }: AnimalCardProps
           </div>
         )}
 
-        {/* FOOTER BAR — logo left + URL right */}
+        {/* FOOTER — blends into card with gradient fade, no hard line */}
         <div style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          background: "rgba(255,255,255,0.92)",
-          borderTop: `2px solid ${speciesStyle.bg}55`,
+          background: `linear-gradient(to bottom, rgba(253,246,236,0) 0%, rgba(253,246,236,0.82) 35%, rgba(253,246,236,0.95) 100%)`,
           marginLeft: "-20px",
           marginRight: "-20px",
-          padding: "8px 20px",
+          marginBottom: "-0px",
+          padding: "18px 20px 12px 20px",
           flexShrink: 0,
-          height: "52px",
           marginTop: "auto",
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
             <img
               src={HALT_LOGO_URL}
               alt="Helping All Little Things"
-              style={{ width: "34px", height: "34px", objectFit: "contain", flexShrink: 0, filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.15))" }}
+              style={{ width: "30px", height: "30px", objectFit: "contain", flexShrink: 0, filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.18))" }}
             />
-            <div style={{ fontFamily: "'Fredoka One', cursive", fontSize: "13px", color: "#1a5a56", lineHeight: 1.2 }}>
+            <div style={{ fontFamily: "'Fredoka One', cursive", fontSize: "12px", color: "#1a5a56", lineHeight: 1.2 }}>
               Helping All Little Things
             </div>
           </div>
-          <div style={{ fontSize: "11px", color: "#2a6a66", fontWeight: 800, letterSpacing: "0.3px" }}>
+          <div style={{ fontSize: "10px", color: "#2a6a66", fontWeight: 800, letterSpacing: "0.3px" }}>
             helpingalllittlethings.org
           </div>
         </div>
