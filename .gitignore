@@ -107,3 +107,7 @@ temp/
 
 # Webdev artifacts (checkpoint zips, migrations, etc.)
 .webdev/
+
+# Manus dev-only debug collector (not needed in production)
+client/public/__manus__/
+dist/public/__manus__/
