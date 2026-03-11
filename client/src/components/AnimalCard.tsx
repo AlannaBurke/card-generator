@@ -256,7 +256,7 @@ export default function AnimalCard({ data, cardRef, cardBgUrl }: AnimalCardProps
         {/* PHOTO — dominant, large */}
         <div style={{
           flex: "0 0 auto",
-          height: "260px",
+          height: "320px",
           borderRadius: "14px",
           overflow: "hidden",
           border: `3px solid ${speciesStyle.bg}99`,

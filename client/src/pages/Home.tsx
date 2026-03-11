@@ -80,7 +80,7 @@ export default function Home() {
   const cardRef = useRef<HTMLDivElement>(null);
   const downloadCardRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { downloadCard, isDownloading } = useCardDownload();
+  const { downloadCard, isDownloading } = useCardDownload(CARD_BG_URL);
   const [, navigate] = useLocation();
 
   const updateField = <K extends keyof AnimalCardData>(key: K, value: AnimalCardData[K]) => {
@@ -162,10 +162,7 @@ export default function Home() {
   };
 
   const handleDownload = () => {
-    // Use the hidden full-size card (not the scaled preview) for download
-    const target = downloadCardRef.current ?? cardRef.current;
-    if (!target) return;
-    downloadCard(target, formData.name);
+    downloadCard(formData);
   };
 
   const handlePrintSheet = () => {
