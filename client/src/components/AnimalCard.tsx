@@ -188,8 +188,8 @@ export default function AnimalCard({ data, cardRef, cardBgUrl }: AnimalCardProps
       <div style={{ position: "absolute", inset: 0, background: "rgba(253,246,236,0.5)", zIndex: 0, pointerEvents: "none" }} />
 
       {/* Outer decorative border rings */}
-      <div style={{ position: "absolute", inset: "7px", borderRadius: "19px", border: `4px solid ${speciesStyle.bg}`, zIndex: 2, pointerEvents: "none", boxShadow: "inset 0 0 0 2px rgba(255,255,255,0.6)" }} />
-      <div style={{ position: "absolute", inset: "13px", borderRadius: "14px", border: "2px solid rgba(255,255,255,0.7)", zIndex: 2, pointerEvents: "none" }} />
+      <div style={{ position: "absolute", inset: "7px", borderRadius: "19px", border: `4px solid ${speciesStyle.bg}`, zIndex: 10, pointerEvents: "none", boxShadow: "inset 0 0 0 2px rgba(255,255,255,0.6)" }} />
+      <div style={{ position: "absolute", inset: "13px", borderRadius: "14px", border: "2px solid rgba(255,255,255,0.7)", zIndex: 10, pointerEvents: "none" }} />
 
       {/* ── Content ── */}
       <div style={{
