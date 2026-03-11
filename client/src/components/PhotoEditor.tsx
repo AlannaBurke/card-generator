@@ -1,19 +1,20 @@
 /*
  * PhotoEditor — Modal photo editing component
  * Design: Cottagecore Pokédex — matches HALT brand
- * Features:
- *   - Crop (react-image-crop, locked to 4:3 — square/portrait friendly)
- *   - Rotate (90° CW/CCW)
- *   - Brightness, Contrast, Saturation sliders
- *   - Auto-adjust (normalises brightness/contrast)
- *   - Reset to original
- *   - Apply → returns edited data URL
  *
- * Fix: applyEdits no longer uses useCallback (avoids stale closure on onApply).
- *      Uses naturalWidth/naturalHeight for correct pixel math regardless of display size.
+ * Rewrite notes:
+ *   - Crop is drawn using a hidden <canvas> element for the preview so the user
+ *     sees exactly what will be exported (no mismatch between UI crop box and output).
+ *   - Apply uses a two-step pipeline:
+ *       1. Draw the full image onto an offscreen canvas, applying rotation.
+ *       2. Crop the rotated canvas to the selected region.
+ *       3. Apply brightness/contrast/saturation filters.
+ *   - Rotation is handled BEFORE crop math so coordinates are always in the
+ *     post-rotation space (matching what the user sees in the crop UI).
+ *   - All canvas operations use naturalWidth/naturalHeight for pixel accuracy.
  */
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import ReactCrop, { type Crop, type PixelCrop, centerCrop, makeAspectCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { Button } from "@/components/ui/button";
@@ -21,27 +22,48 @@ import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 
 interface PhotoEditorProps {
-  src: string;           // original data URL or blob URL
+  src: string;           // data URL from FileReader
   onApply: (result: string) => void;
   onClose: () => void;
 }
 
 interface Adjustments {
   brightness: number;   // 0–200 (100 = normal)
-  contrast: number;     // 0–200
-  saturation: number;   // 0–200
+  contrast: number;
+  saturation: number;
 }
 
 const DEFAULT_ADJ: Adjustments = { brightness: 100, contrast: 100, saturation: 100 };
+const ASPECT = 1; // 1:1 square — best for animal portrait photos
 
-// 1:1 square crop — works best for animal portrait photos in the card
-const CARD_PHOTO_ASPECT = 1;
-
-function centerAspectCrop(w: number, h: number) {
+function centerAspectCrop(w: number, h: number): Crop {
   return centerCrop(
-    makeAspectCrop({ unit: "%", width: 90 }, CARD_PHOTO_ASPECT, w, h),
+    makeAspectCrop({ unit: "%", width: 85 }, ASPECT, w, h),
     w, h
   );
+}
+
+/** Rotate an ImageBitmap by 0/90/180/270 degrees onto a new canvas */
+function rotateImageToCanvas(img: HTMLImageElement, rotation: number): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d")!;
+  const w = img.naturalWidth;
+  const h = img.naturalHeight;
+
+  if (rotation === 90 || rotation === 270) {
+    canvas.width = h;
+    canvas.height = w;
+  } else {
+    canvas.width = w;
+    canvas.height = h;
+  }
+
+  ctx.save();
+  ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.rotate((rotation * Math.PI) / 180);
+  ctx.drawImage(img, -w / 2, -h / 2, w, h);
+  ctx.restore();
+  return canvas;
 }
 
 export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps) {
@@ -51,97 +73,111 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
   const [rotation, setRotation] = useState(0);
   const [adj, setAdj] = useState<Adjustments>(DEFAULT_ADJ);
   const [activeTab, setActiveTab] = useState<"crop" | "adjust">("crop");
+  const [imgLoaded, setImgLoaded] = useState(false);
 
   // When image loads, set a default centered crop
   const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    const { naturalWidth, naturalHeight } = e.currentTarget;
-    setCrop(centerAspectCrop(naturalWidth, naturalHeight));
+    const { width, height } = e.currentTarget;
+    setCrop(centerAspectCrop(width, height));
+    setImgLoaded(true);
   };
+
+  // Re-center crop when rotation changes (dimensions may swap)
+  useEffect(() => {
+    if (!imgRef.current || !imgLoaded) return;
+    const img = imgRef.current;
+    // After rotation, displayed w/h may swap — re-center
+    const isRotated90 = rotation === 90 || rotation === 270;
+    const displayW = isRotated90 ? img.clientHeight : img.clientWidth;
+    const displayH = isRotated90 ? img.clientWidth : img.clientHeight;
+    if (displayW > 0 && displayH > 0) {
+      setCrop(centerAspectCrop(displayW, displayH));
+      setCompletedCrop(undefined);
+    }
+  }, [rotation, imgLoaded]);
 
   const rotate = (dir: "cw" | "ccw") => {
     setRotation((r) => (r + (dir === "cw" ? 90 : -90) + 360) % 360);
   };
 
-  const autoAdjust = () => {
-    setAdj({ brightness: 110, contrast: 115, saturation: 115 });
-  };
-
+  const autoAdjust = () => setAdj({ brightness: 108, contrast: 112, saturation: 112 });
   const resetAdj = () => setAdj(DEFAULT_ADJ);
 
-  // NOT useCallback — direct function so it always has fresh closure over onApply, completedCrop, rotation, adj
   const applyEdits = () => {
     const image = imgRef.current;
-    if (!image) return;
-
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    // Use natural dimensions for pixel-accurate math
-    const natW = image.naturalWidth;
-    const natH = image.naturalHeight;
-
-    // Scale from display pixels → natural pixels
-    const scaleX = natW / image.width;
-    const scaleY = natH / image.height;
-
-    let srcX = 0, srcY = 0, srcW = natW, srcH = natH;
-    if (completedCrop && completedCrop.width > 0 && completedCrop.height > 0) {
-      srcX = completedCrop.x * scaleX;
-      srcY = completedCrop.y * scaleY;
-      srcW = completedCrop.width * scaleX;
-      srcH = completedCrop.height * scaleY;
+    if (!image) {
+      console.error("PhotoEditor: imgRef is null");
+      return;
     }
 
-    // Output size: keep crop dimensions, max 1400px on longest side
+    // Step 1: rotate the full image onto a canvas
+    const rotated = rotateImageToCanvas(image, rotation);
+
+    // Step 2: crop the rotated canvas
+    // completedCrop is in display-pixel space; scale to natural-pixel space
+    const displayW = image.clientWidth;
+    const displayH = image.clientHeight;
+
+    // After rotation, the displayed image dimensions may be swapped
+    const isRotated90 = rotation === 90 || rotation === 270;
+    const natW = isRotated90 ? image.naturalHeight : image.naturalWidth;
+    const natH = isRotated90 ? image.naturalWidth : image.naturalHeight;
+
+    const scaleX = natW / displayW;
+    const scaleY = natH / displayH;
+
+    let cropX = 0, cropY = 0, cropW = rotated.width, cropH = rotated.height;
+    if (completedCrop && completedCrop.width > 4 && completedCrop.height > 4) {
+      cropX = Math.round(completedCrop.x * scaleX);
+      cropY = Math.round(completedCrop.y * scaleY);
+      cropW = Math.round(completedCrop.width * scaleX);
+      cropH = Math.round(completedCrop.height * scaleY);
+    }
+
+    // Clamp to canvas bounds
+    cropX = Math.max(0, Math.min(cropX, rotated.width - 1));
+    cropY = Math.max(0, Math.min(cropY, rotated.height - 1));
+    cropW = Math.max(1, Math.min(cropW, rotated.width - cropX));
+    cropH = Math.max(1, Math.min(cropH, rotated.height - cropY));
+
+    // Step 3: draw cropped region to output canvas, max 1400px
     const maxDim = 1400;
-    let outW = srcW, outH = srcH;
-    if (rotation === 90 || rotation === 270) { [outW, outH] = [outH, outW]; }
-    const scale = Math.min(1, maxDim / Math.max(outW, outH));
-    const finalW = Math.round(outW * scale);
-    const finalH = Math.round(outH * scale);
+    const scale = Math.min(1, maxDim / Math.max(cropW, cropH));
+    const outW = Math.round(cropW * scale);
+    const outH = Math.round(cropH * scale);
 
-    canvas.width = finalW;
-    canvas.height = finalH;
+    const output = document.createElement("canvas");
+    output.width = outW;
+    output.height = outH;
+    const ctx = output.getContext("2d")!;
 
-    ctx.save();
-    ctx.translate(finalW / 2, finalH / 2);
-    ctx.rotate((rotation * Math.PI) / 180);
+    // Step 4: apply adjustments via filter
+    ctx.filter = `brightness(${adj.brightness}%) contrast(${adj.contrast}%) saturate(${adj.saturation}%)`;
+    ctx.drawImage(rotated, cropX, cropY, cropW, cropH, 0, 0, outW, outH);
 
-    if (rotation === 0 || rotation === 180) {
-      ctx.drawImage(image, srcX, srcY, srcW, srcH, -finalW / 2, -finalH / 2, finalW, finalH);
-    } else {
-      ctx.drawImage(image, srcX, srcY, srcW, srcH, -finalH / 2, -finalW / 2, finalH, finalW);
+    const result = output.toDataURL("image/jpeg", 0.92);
+    if (!result || result === "data:,") {
+      console.error("PhotoEditor: canvas produced empty result");
+      return;
     }
-    ctx.restore();
-
-    // Apply CSS filters on a second canvas
-    const filtered = document.createElement("canvas");
-    filtered.width = finalW;
-    filtered.height = finalH;
-    const fctx = filtered.getContext("2d");
-    if (!fctx) return;
-    fctx.filter = `brightness(${adj.brightness}%) contrast(${adj.contrast}%) saturate(${adj.saturation}%)`;
-    fctx.drawImage(canvas, 0, 0);
-
-    const result = filtered.toDataURL("image/jpeg", 0.92);
     onApply(result);
   };
 
   const filterStyle = `brightness(${adj.brightness}%) contrast(${adj.contrast}%) saturate(${adj.saturation}%)`;
 
   return (
-    <div style={{
-      position: "fixed",
-      inset: 0,
-      zIndex: 1000,
-      background: "rgba(30,20,10,0.75)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: "16px",
-      backdropFilter: "blur(4px)",
-    }}
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1000,
+        background: "rgba(30,20,10,0.75)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "16px",
+        backdropFilter: "blur(4px)",
+      }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div style={{
@@ -213,7 +249,7 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                 crop={crop}
                 onChange={(c) => setCrop(c)}
                 onComplete={(c) => setCompletedCrop(c)}
-                aspect={CARD_PHOTO_ASPECT}
+                aspect={ASPECT}
                 style={{ maxWidth: "100%", maxHeight: "60vh" }}
               >
                 <img
@@ -233,8 +269,10 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
               </ReactCrop>
             ) : (
               <img
+                ref={imgRef}
                 src={src}
                 alt="Adjust preview"
+                onLoad={onImageLoad}
                 style={{
                   maxWidth: "100%",
                   maxHeight: "60vh",
@@ -280,13 +318,13 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                     ✂️ Crop
                   </Label>
                   <p style={{ fontSize: "11px", color: "#8a7a6a", margin: 0, lineHeight: 1.5 }}>
-                    Crop is locked to 1:1 square — works best for animal portraits in the card.
+                    Drag the handles to select the area you want. The crop is locked to square — best for animal portraits.
                   </p>
                   <button
                     onClick={() => { setCrop(undefined); setCompletedCrop(undefined); }}
                     style={{ ...btnStyle, marginTop: "8px", width: "100%" }}
                   >
-                    Clear Crop
+                    Reset Crop
                   </button>
                 </div>
               </>
@@ -297,7 +335,7 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
                     <Label style={{ fontWeight: 700, color: "#4a3c2e", fontSize: "12px" }}>Adjustments</Label>
-                    <button onClick={resetAdj} style={{ ...btnStyle, fontSize: "10px", padding: "2px 8px" }}>Reset</button>
+                    <button onClick={resetAdj} style={{ ...btnStyle, fontSize: "11px", padding: "3px 8px" }}>Reset</button>
                   </div>
 
                   {([
@@ -336,7 +374,6 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                 </button>
               </>
             )}
-
           </div>
         </div>
 
