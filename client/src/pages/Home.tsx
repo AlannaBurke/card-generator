@@ -2,13 +2,18 @@
  * Home — Card Generator Main Page
  * Design: Cottagecore Pokédex
  * Layout: Left panel (form) + Right panel (live card preview)
- * - Teal hero header with HALT branding
- * - Form fields: photo upload, name, species, sex, age, weight, personality, bio, HP
- * - Live preview updates in real time
- * - Download button exports card as PNG
+ * Features:
+ *   - Photo upload with built-in editor (crop, rotate, brightness, contrast, saturation, auto-adjust)
+ *   - Animal details: name, species, sex, age, weight, personality, bio, HP
+ *   - Card number (#001 style)
+ *   - Adoption status badge (Available / In Foster / Sanctuary Resident)
+ *   - Live card preview with 3D flip to show back
+ *   - Download as PNG
+ *   - Print Sheet (6 cards per page)
  */
 
 import { useRef, useState } from "react";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
 import AnimalCard, { AnimalCardData } from "@/components/AnimalCard";
+import PhotoEditor from "@/components/PhotoEditor";
 import { useCardDownload } from "@/hooks/useCardDownload";
 
 const LOGO_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/logo-square_17e2654f.png";
@@ -24,15 +30,13 @@ const CARD_BG_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KS
 const HERO_BG_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/app-hero-bg-CWeUKfCSYNAGPYj2aoU9jQ.webp";
 const CARD_BACK_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/card-back-design-9EfXenfGhBLKc4MrnhnWvn.webp";
 
-const SPECIES_OPTIONS = [
-  "Rabbit",
-  "Guinea Pig",
-  "Hamster",
-  "Rat",
-  "Mouse",
-  "Chinchilla",
-  "Gerbil",
-  "Other",
+const SPECIES_OPTIONS = ["Rabbit", "Guinea Pig", "Hamster", "Rat", "Mouse", "Chinchilla", "Gerbil", "Other"];
+
+const ADOPTION_STATUS_OPTIONS = [
+  { value: "none", label: "— None —" },
+  { value: "available", label: "💚 Available for Adoption" },
+  { value: "foster", label: "🏠 In Foster Care" },
+  { value: "resident", label: "🌟 Sanctuary Resident" },
 ];
 
 const DEFAULT_DATA: AnimalCardData = {
@@ -45,15 +49,20 @@ const DEFAULT_DATA: AnimalCardData = {
   bio: "",
   photoUrl: null,
   hp: 75,
+  cardNumber: "",
+  adoptionStatus: "none",
 };
 
 export default function Home() {
   const [formData, setFormData] = useState<AnimalCardData>(DEFAULT_DATA);
   const [showBack, setShowBack] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [editorSrc, setEditorSrc] = useState<string | null>(null); // raw uploaded image for editor
+  const [showEditor, setShowEditor] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { downloadCard, isDownloading } = useCardDownload();
+  const [, navigate] = useLocation();
 
   const updateField = <K extends keyof AnimalCardData>(key: K, value: AnimalCardData[K]) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
@@ -70,8 +79,9 @@ export default function Home() {
     }
     const reader = new FileReader();
     reader.onload = (e) => {
-      updateField("photoUrl", e.target?.result as string);
-      toast.success("Photo uploaded! 🐾");
+      const dataUrl = e.target?.result as string;
+      setEditorSrc(dataUrl);
+      setShowEditor(true);
     };
     reader.readAsDataURL(file);
   };
@@ -79,6 +89,8 @@ export default function Home() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) handlePhotoUpload(file);
+    // reset so same file can be re-selected
+    e.target.value = "";
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -88,19 +100,54 @@ export default function Home() {
     if (file) handlePhotoUpload(file);
   };
 
+  const handleEditorApply = (result: string) => {
+    updateField("photoUrl", result);
+    setShowEditor(false);
+    setEditorSrc(null);
+    toast.success("Photo applied! 🐾");
+  };
+
+  const handleEditorClose = () => {
+    setShowEditor(false);
+    // If no photo was previously set, keep it null; otherwise keep existing
+  };
+
+  const handleEditExistingPhoto = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (formData.photoUrl) {
+      setEditorSrc(formData.photoUrl);
+      setShowEditor(true);
+    }
+  };
+
   const handleDownload = () => {
     if (!cardRef.current) return;
     downloadCard(cardRef.current, formData.name);
   };
 
+  const handlePrintSheet = () => {
+    sessionStorage.setItem("halt-card-data", JSON.stringify(formData));
+    navigate("/print");
+  };
+
   const handleReset = () => {
     setFormData(DEFAULT_DATA);
+    setEditorSrc(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
     toast.info("Form cleared!");
   };
 
   return (
     <div style={{ minHeight: "100vh", background: "#fdf6ec", fontFamily: "'Nunito', sans-serif" }}>
+
+      {/* Photo Editor Modal */}
+      {showEditor && editorSrc && (
+        <PhotoEditor
+          src={editorSrc}
+          onApply={handleEditorApply}
+          onClose={handleEditorClose}
+        />
+      )}
 
       {/* === HERO HEADER === */}
       <header style={{
@@ -111,7 +158,6 @@ export default function Home() {
         padding: "32px 24px 40px",
         overflow: "hidden",
       }}>
-        {/* Overlay for text readability */}
         <div style={{
           position: "absolute",
           inset: 0,
@@ -155,7 +201,7 @@ export default function Home() {
         </div>
       </header>
 
-      {/* === MAIN CONTENT: Form + Preview === */}
+      {/* === MAIN CONTENT === */}
       <main style={{
         maxWidth: "1200px",
         margin: "0 auto",
@@ -189,13 +235,13 @@ export default function Home() {
 
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
 
-            {/* Photo Upload */}
+            {/* ── Photo Upload ── */}
             <div>
               <Label style={{ fontWeight: 700, color: "#4a3c2e", fontSize: "13px", marginBottom: "6px", display: "block" }}>
                 📸 Photo
               </Label>
               <div
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => !formData.photoUrl && fileInputRef.current?.click()}
                 onDrop={handleDrop}
                 onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                 onDragLeave={() => setDragOver(false)}
@@ -204,7 +250,7 @@ export default function Home() {
                   borderRadius: "12px",
                   padding: "16px",
                   textAlign: "center",
-                  cursor: "pointer",
+                  cursor: formData.photoUrl ? "default" : "pointer",
                   background: dragOver ? "rgba(42,173,168,0.08)" : "rgba(42,173,168,0.03)",
                   transition: "all 0.2s",
                   position: "relative",
@@ -218,21 +264,49 @@ export default function Home() {
                       alt="Preview"
                       style={{ width: "100%", height: "120px", objectFit: "cover", borderRadius: "8px" }}
                     />
+                    {/* Action buttons over photo */}
                     <div style={{
                       position: "absolute",
                       inset: 0,
-                      background: "rgba(0,0,0,0.4)",
                       borderRadius: "8px",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      opacity: 0,
-                      transition: "opacity 0.2s",
-                    }}
-                      onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-                      onMouseLeave={(e) => (e.currentTarget.style.opacity = "0")}
-                    >
-                      <span style={{ color: "white", fontWeight: 700, fontSize: "13px" }}>Click to change</span>
+                      gap: "8px",
+                      background: "rgba(0,0,0,0.45)",
+                    }}>
+                      <button
+                        onClick={handleEditExistingPhoto}
+                        style={{
+                          background: "rgba(255,255,255,0.9)",
+                          border: "none",
+                          borderRadius: "8px",
+                          padding: "6px 14px",
+                          cursor: "pointer",
+                          fontFamily: "'Baloo 2', cursive",
+                          fontWeight: 700,
+                          fontSize: "12px",
+                          color: "#2AADA8",
+                        }}
+                      >
+                        ✂️ Edit Photo
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                        style={{
+                          background: "rgba(255,255,255,0.9)",
+                          border: "none",
+                          borderRadius: "8px",
+                          padding: "6px 14px",
+                          cursor: "pointer",
+                          fontFamily: "'Baloo 2', cursive",
+                          fontWeight: 700,
+                          fontSize: "12px",
+                          color: "#6a8a88",
+                        }}
+                      >
+                        🔄 Change
+                      </button>
                     </div>
                   </div>
                 ) : (
@@ -240,6 +314,9 @@ export default function Home() {
                     <div style={{ fontSize: "32px", marginBottom: "6px" }}>🖼️</div>
                     <div style={{ fontWeight: 700, fontSize: "13px" }}>Click or drag & drop</div>
                     <div style={{ fontSize: "11px", marginTop: "2px" }}>JPG, PNG, WEBP · Max 10MB</div>
+                    <div style={{ fontSize: "11px", marginTop: "4px", color: "#2AADA8", fontWeight: 600 }}>
+                      Photo editor opens automatically ✂️
+                    </div>
                   </div>
                 )}
               </div>
@@ -252,7 +329,7 @@ export default function Home() {
               />
             </div>
 
-            {/* Name */}
+            {/* ── Name ── */}
             <div>
               <Label style={{ fontWeight: 700, color: "#4a3c2e", fontSize: "13px", marginBottom: "6px", display: "block" }}>
                 🏷️ Name *
@@ -265,7 +342,38 @@ export default function Home() {
               />
             </div>
 
-            {/* Species + Sex row */}
+            {/* ── Card Number + Adoption Status row ── */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "12px" }}>
+              <div>
+                <Label style={{ fontWeight: 700, color: "#4a3c2e", fontSize: "13px", marginBottom: "6px", display: "block" }}>
+                  🔢 Card #
+                </Label>
+                <Input
+                  placeholder="e.g. 042"
+                  value={formData.cardNumber ?? ""}
+                  onChange={(e) => updateField("cardNumber", e.target.value)}
+                  style={{ borderColor: "#c8dedd", borderRadius: "10px" }}
+                  maxLength={6}
+                />
+              </div>
+              <div>
+                <Label style={{ fontWeight: 700, color: "#4a3c2e", fontSize: "13px", marginBottom: "6px", display: "block" }}>
+                  🏷️ Adoption Status
+                </Label>
+                <Select value={formData.adoptionStatus ?? "none"} onValueChange={(v) => updateField("adoptionStatus", v)}>
+                  <SelectTrigger style={{ borderColor: "#c8dedd", borderRadius: "10px" }}>
+                    <SelectValue placeholder="— None —" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ADOPTION_STATUS_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* ── Species + Sex row ── */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
               <div>
                 <Label style={{ fontWeight: 700, color: "#4a3c2e", fontSize: "13px", marginBottom: "6px", display: "block" }}>
@@ -299,7 +407,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Age + Weight row */}
+            {/* ── Age + Weight row ── */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
               <div>
                 <Label style={{ fontWeight: 700, color: "#4a3c2e", fontSize: "13px", marginBottom: "6px", display: "block" }}>
@@ -325,7 +433,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Personality */}
+            {/* ── Personality ── */}
             <div>
               <Label style={{ fontWeight: 700, color: "#4a3c2e", fontSize: "13px", marginBottom: "6px", display: "block" }}>
                 ✨ Personality Traits
@@ -339,7 +447,7 @@ export default function Home() {
               />
             </div>
 
-            {/* Bio */}
+            {/* ── Bio ── */}
             <div>
               <Label style={{ fontWeight: 700, color: "#4a3c2e", fontSize: "13px", marginBottom: "6px", display: "block" }}>
                 📖 Bio / Story
@@ -353,7 +461,7 @@ export default function Home() {
               />
             </div>
 
-            {/* Friendliness HP */}
+            {/* ── Friendliness HP ── */}
             <div>
               <Label style={{ fontWeight: 700, color: "#4a3c2e", fontSize: "13px", marginBottom: "8px", display: "flex", justifyContent: "space-between" }}>
                 <span>💖 Friendliness Score</span>
@@ -365,7 +473,6 @@ export default function Home() {
                 min={1}
                 max={100}
                 step={1}
-                style={{ accentColor: "#E8879A" }}
               />
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#8a7a6a", marginTop: "4px" }}>
                 <span>Shy</span>
@@ -373,13 +480,14 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
+            {/* ── Action Buttons ── */}
+            <div style={{ display: "flex", gap: "10px", marginTop: "4px", flexWrap: "wrap" }}>
               <Button
                 onClick={handleDownload}
                 disabled={isDownloading}
                 style={{
                   flex: 1,
+                  minWidth: "140px",
                   background: "linear-gradient(135deg, #2AADA8, #1d8a86)",
                   color: "white",
                   borderRadius: "12px",
@@ -392,6 +500,21 @@ export default function Home() {
                 }}
               >
                 {isDownloading ? "⏳ Generating..." : "⬇️ Download Card"}
+              </Button>
+              <Button
+                onClick={handlePrintSheet}
+                variant="outline"
+                style={{
+                  borderRadius: "12px",
+                  borderColor: "#2AADA8",
+                  color: "#2AADA8",
+                  fontFamily: "'Baloo 2', cursive",
+                  fontWeight: 700,
+                  fontSize: "13px",
+                  background: "rgba(42,173,168,0.06)",
+                }}
+              >
+                🖨️ Print Sheet
               </Button>
               <Button
                 onClick={handleReset}
@@ -455,70 +578,70 @@ export default function Home() {
               </Button>
             </div>
 
-          {/* Card flip container — uses CSS 3D flip */}
-          <div style={{
-            perspective: "1200px",
-            width: "300px",
-            height: "420px",
-            flexShrink: 0,
-            position: "relative",
-          }}>
+            {/* Card flip container */}
             <div style={{
+              perspective: "1200px",
               width: "300px",
               height: "420px",
-              transition: "transform 0.7s cubic-bezier(0.4, 0, 0.2, 1)",
-              transformStyle: "preserve-3d",
-              transform: showBack ? "rotateY(180deg)" : "rotateY(0deg)",
+              flexShrink: 0,
               position: "relative",
             }}>
-              {/* Front — scaled down from 600×840 to 300×420 */}
               <div style={{
-                position: "absolute",
                 width: "300px",
                 height: "420px",
-                backfaceVisibility: "hidden",
-                WebkitBackfaceVisibility: "hidden",
-                overflow: "hidden",
-                borderRadius: "12px",
+                transition: "transform 0.7s cubic-bezier(0.4, 0, 0.2, 1)",
+                transformStyle: "preserve-3d",
+                transform: showBack ? "rotateY(180deg)" : "rotateY(0deg)",
+                position: "relative",
               }}>
+                {/* Front — scaled 600×840 → 300×420 */}
                 <div style={{
-                  transform: "scale(0.5)",
-                  transformOrigin: "top left",
-                  width: "600px",
-                  height: "840px",
+                  position: "absolute",
+                  width: "300px",
+                  height: "420px",
+                  backfaceVisibility: "hidden",
+                  WebkitBackfaceVisibility: "hidden",
+                  overflow: "hidden",
+                  borderRadius: "12px",
                 }}>
-                  <AnimalCard
-                    data={formData}
-                    cardRef={cardRef}
-                    logoUrl={LOGO_URL}
-                    cardBgUrl={CARD_BG_URL}
+                  <div style={{
+                    transform: "scale(0.5)",
+                    transformOrigin: "top left",
+                    width: "600px",
+                    height: "840px",
+                  }}>
+                    <AnimalCard
+                      data={formData}
+                      cardRef={cardRef}
+                      logoUrl={LOGO_URL}
+                      cardBgUrl={CARD_BG_URL}
+                    />
+                  </div>
+                </div>
+                {/* Back */}
+                <div style={{
+                  position: "absolute",
+                  width: "300px",
+                  height: "420px",
+                  backfaceVisibility: "hidden",
+                  WebkitBackfaceVisibility: "hidden",
+                  transform: "rotateY(180deg)",
+                }}>
+                  <img
+                    src={CARD_BACK_URL}
+                    alt="Card Back"
+                    style={{
+                      width: "300px",
+                      height: "420px",
+                      objectFit: "cover",
+                      borderRadius: "12px",
+                      boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+                      display: "block",
+                    }}
                   />
                 </div>
               </div>
-              {/* Back */}
-              <div style={{
-                position: "absolute",
-                width: "300px",
-                height: "420px",
-                backfaceVisibility: "hidden",
-                WebkitBackfaceVisibility: "hidden",
-                transform: "rotateY(180deg)",
-              }}>
-                <img
-                  src={CARD_BACK_URL}
-                  alt="Card Back"
-                  style={{
-                    width: "300px",
-                    height: "420px",
-                    objectFit: "cover",
-                    borderRadius: "12px",
-                    boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
-                    display: "block",
-                  }}
-                />
-              </div>
             </div>
-          </div>
 
             <p style={{
               fontSize: "12px",
@@ -546,11 +669,11 @@ export default function Home() {
               margin: "0 0 10px",
             }}>💡 Tips for Great Cards</h3>
             <ul style={{ margin: 0, padding: "0 0 0 16px", fontSize: "13px", color: "#4a3c2e", lineHeight: 1.7 }}>
-              <li>Use a <strong>clear, well-lit photo</strong> with the animal as the main subject</li>
+              <li>Use a <strong>clear, well-lit photo</strong> — the editor can brighten dark shots</li>
+              <li>Use <strong>✂️ Edit Photo</strong> to crop, rotate, and adjust after uploading</li>
               <li>Square or portrait photos work best for the card frame</li>
               <li>Keep the bio to <strong>2–3 sentences</strong> — it's a card, not a novel! 🐾</li>
-              <li>Personality traits like "Curious, Gentle, Loves veggies" add charm</li>
-              <li>The card downloads at <strong>high resolution</strong> — perfect for sharing!</li>
+              <li>Use <strong>🖨️ Print Sheet</strong> to print 6 cards per page on cardstock</li>
             </ul>
           </div>
         </div>

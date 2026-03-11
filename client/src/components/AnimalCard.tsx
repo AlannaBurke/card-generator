@@ -5,6 +5,8 @@
  * - Teal/peach color scheme matching HALT branding
  * - Species-type color badge system
  * - Stats grid with heart HP meter
+ * - Adoption status badge
+ * - Card number (#001 style)
  * - HALT logo + website in footer
  */
 
@@ -19,18 +21,26 @@ export interface AnimalCardData {
   personality?: string;
   bio: string;
   photoUrl: string | null;
-  hp?: number; // 1-100 friendliness score
+  hp?: number;            // 1–100 friendliness score
+  cardNumber?: string;    // e.g. "042"
+  adoptionStatus?: string; // "available" | "foster" | "resident" | ""
 }
 
 const SPECIES_COLORS: Record<string, { bg: string; text: string; label: string }> = {
-  rabbit:      { bg: "#4BBFB8", text: "#fff",     label: "Rabbit" },
-  "guinea pig":{ bg: "#F4A88A", text: "#4a2e1a",  label: "Guinea Pig" },
-  hamster:     { bg: "#E8879A", text: "#fff",      label: "Hamster" },
-  rat:         { bg: "#7CB87C", text: "#fff",      label: "Rat" },
-  mouse:       { bg: "#A89BD4", text: "#fff",      label: "Mouse" },
-  chinchilla:  { bg: "#8BAED4", text: "#fff",      label: "Chinchilla" },
-  gerbil:      { bg: "#D4A85A", text: "#fff",      label: "Gerbil" },
-  other:       { bg: "#2AADA8", text: "#fff",      label: "Small Animal" },
+  rabbit:        { bg: "#4BBFB8", text: "#fff",     label: "Rabbit" },
+  "guinea pig":  { bg: "#F4A88A", text: "#4a2e1a",  label: "Guinea Pig" },
+  hamster:       { bg: "#E8879A", text: "#fff",      label: "Hamster" },
+  rat:           { bg: "#7CB87C", text: "#fff",      label: "Rat" },
+  mouse:         { bg: "#A89BD4", text: "#fff",      label: "Mouse" },
+  chinchilla:    { bg: "#8BAED4", text: "#fff",      label: "Chinchilla" },
+  gerbil:        { bg: "#D4A85A", text: "#fff",      label: "Gerbil" },
+  other:         { bg: "#2AADA8", text: "#fff",      label: "Small Animal" },
+};
+
+const ADOPTION_STATUS: Record<string, { label: string; bg: string; text: string; icon: string }> = {
+  available: { label: "Available for Adoption", bg: "#4CAF50", text: "#fff", icon: "💚" },
+  foster:    { label: "In Foster Care",          bg: "#FF9800", text: "#fff", icon: "🏠" },
+  resident:  { label: "Sanctuary Resident",      bg: "#9C27B0", text: "#fff", icon: "🌟" },
 };
 
 function getSpeciesStyle(species: string) {
@@ -51,7 +61,6 @@ function HeartHP({ value }: { value: number }) {
   );
 }
 
-// SVG paw print for watermark
 function PawPrint({ style }: { style?: React.CSSProperties }) {
   return (
     <svg viewBox="0 0 100 100" style={style} fill="currentColor">
@@ -74,8 +83,8 @@ interface AnimalCardProps {
 export default function AnimalCard({ data, cardRef, logoUrl, cardBgUrl }: AnimalCardProps) {
   const speciesStyle = getSpeciesStyle(data.species);
   const hp = data.hp ?? 75;
+  const statusInfo = (data.adoptionStatus && data.adoptionStatus !== "none") ? ADOPTION_STATUS[data.adoptionStatus] : null;
 
-  // Card dimensions: 2.5" × 3.5" at 96dpi = 240 × 336px, scaled up 2.5x = 600 × 840
   const CARD_W = 600;
   const CARD_H = 840;
 
@@ -144,7 +153,7 @@ export default function AnimalCard({ data, cardRef, logoUrl, cardBgUrl }: Animal
         display: "flex",
         flexDirection: "column",
         padding: "22px 22px 16px",
-        gap: "10px",
+        gap: "8px",
       }}>
 
         {/* === TOP HEADER: Name + HP + Type badge === */}
@@ -158,15 +167,28 @@ export default function AnimalCard({ data, cardRef, logoUrl, cardBgUrl }: Animal
           boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
         }}>
           <div>
-            <div style={{
-              fontFamily: "'Fredoka One', cursive",
-              fontSize: "26px",
-              color: speciesStyle.text,
-              lineHeight: 1.1,
-              textShadow: "0 1px 2px rgba(0,0,0,0.15)",
-              letterSpacing: "0.5px",
-            }}>
-              {data.name || "Animal Name"}
+            <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+              <div style={{
+                fontFamily: "'Fredoka One', cursive",
+                fontSize: "26px",
+                color: speciesStyle.text,
+                lineHeight: 1.1,
+                textShadow: "0 1px 2px rgba(0,0,0,0.15)",
+                letterSpacing: "0.5px",
+              }}>
+                {data.name || "Animal Name"}
+              </div>
+              {data.cardNumber && (
+                <div style={{
+                  fontSize: "11px",
+                  color: speciesStyle.text,
+                  opacity: 0.75,
+                  fontWeight: 700,
+                  fontFamily: "'Nunito', sans-serif",
+                }}>
+                  #{String(data.cardNumber).padStart(3, "0")}
+                </div>
+              )}
             </div>
             <div style={{
               fontSize: "12px",
@@ -198,10 +220,35 @@ export default function AnimalCard({ data, cardRef, logoUrl, cardBgUrl }: Animal
           </div>
         </div>
 
+        {/* === ADOPTION STATUS BADGE === */}
+        {statusInfo && (
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "6px",
+            background: `${statusInfo.bg}ee`,
+            borderRadius: "10px",
+            padding: "5px 12px",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+          }}>
+            <span style={{ fontSize: "14px" }}>{statusInfo.icon}</span>
+            <span style={{
+              fontFamily: "'Fredoka One', cursive",
+              fontSize: "13px",
+              color: statusInfo.text,
+              letterSpacing: "0.3px",
+              textShadow: "0 1px 2px rgba(0,0,0,0.2)",
+            }}>
+              {statusInfo.label}
+            </span>
+          </div>
+        )}
+
         {/* === PHOTO FRAME === */}
         <div style={{
           flex: "0 0 auto",
-          height: "310px",
+          height: statusInfo ? "278px" : "296px",
           borderRadius: "14px",
           overflow: "hidden",
           border: `3px solid ${speciesStyle.bg}88`,
@@ -241,7 +288,6 @@ export default function AnimalCard({ data, cardRef, logoUrl, cardBgUrl }: Animal
               <span style={{ fontSize: "14px", fontWeight: 600 }}>Upload a photo</span>
             </div>
           )}
-          {/* Corner sparkles */}
           <div style={{ position: "absolute", top: "6px", right: "8px", fontSize: "16px", opacity: 0.7 }}>✦</div>
           <div style={{ position: "absolute", bottom: "6px", left: "8px", fontSize: "12px", opacity: 0.5 }}>✦</div>
         </div>
@@ -272,7 +318,7 @@ export default function AnimalCard({ data, cardRef, logoUrl, cardBgUrl }: Animal
           ))}
         </div>
 
-        {/* === PERSONALITY TAG === */}
+        {/* === PERSONALITY TAGS === */}
         {data.personality && (
           <div style={{
             display: "flex",
@@ -280,7 +326,7 @@ export default function AnimalCard({ data, cardRef, logoUrl, cardBgUrl }: Animal
             gap: "6px",
             flexWrap: "wrap",
           }}>
-            {data.personality.split(",").map((trait, i) => (
+            {data.personality.split(",").slice(0, 4).map((trait, i) => (
               <span key={i} style={{
                 background: `${speciesStyle.bg}22`,
                 border: `1.5px solid ${speciesStyle.bg}55`,
@@ -297,7 +343,7 @@ export default function AnimalCard({ data, cardRef, logoUrl, cardBgUrl }: Animal
           </div>
         )}
 
-        {/* === BIO / FLAVOR TEXT === */}
+        {/* === BIO === */}
         <div style={{
           background: "rgba(255,255,255,0.7)",
           borderRadius: "10px",
@@ -321,7 +367,7 @@ export default function AnimalCard({ data, cardRef, logoUrl, cardBgUrl }: Animal
           </p>
         </div>
 
-        {/* === FOOTER: HALT Logo + Website === */}
+        {/* === FOOTER === */}
         <div style={{
           display: "flex",
           alignItems: "center",
