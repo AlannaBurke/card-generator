@@ -131,11 +131,33 @@ export default function Home() {
     // If no photo was previously set, keep it null; otherwise keep existing
   };
 
+  // Convert any URL (CDN or data:) to a data URL so the canvas is never tainted
+  const openEditorWithSrc = async (src: string) => {
+    if (src.startsWith("data:")) {
+      setEditorSrc(src);
+      setShowEditor(true);
+      return;
+    }
+    try {
+      const resp = await fetch(src);
+      const blob = await resp.blob();
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target?.result as string;
+        setEditorSrc(dataUrl);
+        setShowEditor(true);
+      };
+      reader.readAsDataURL(blob);
+    } catch {
+      // Fallback: open with original src (will taint canvas but at least opens)
+      setEditorSrc(src);
+      setShowEditor(true);
+    }
+  };
   const handleEditExistingPhoto = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (formData.photoUrl) {
-      setEditorSrc(formData.photoUrl);
-      setShowEditor(true);
+      openEditorWithSrc(formData.photoUrl);
     }
   };
 
