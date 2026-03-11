@@ -51,6 +51,7 @@ const DEFAULT_DATA: AnimalCardData = {
   hp: 75,
   cardNumber: "",
   adoptionStatus: "none",
+  funFact: "",
 };
 
 export default function Home() {
@@ -443,6 +444,20 @@ export default function Home() {
                 placeholder="e.g. Curious, Gentle, Loves cuddles"
                 value={formData.personality}
                 onChange={(e) => updateField("personality", e.target.value)}
+                style={{ borderColor: "#c8dedd", borderRadius: "10px" }}
+              />
+            </div>
+
+            {/* ── Fun Fact ── */}
+            <div>
+              <Label style={{ fontWeight: 700, color: "#4a3c2e", fontSize: "13px", marginBottom: "6px", display: "block" }}>
+                ⭐ Fun Fact
+                <span style={{ fontWeight: 400, color: "#8a7a6a", marginLeft: "6px" }}>short & snappy</span>
+              </Label>
+              <Input
+                placeholder="e.g. Loves blueberries! Can jump 3 feet!"
+                value={formData.funFact ?? ""}
+                onChange={(e) => updateField("funFact", e.target.value)}
                 style={{ borderColor: "#c8dedd", borderRadius: "10px" }}
               />
             </div>

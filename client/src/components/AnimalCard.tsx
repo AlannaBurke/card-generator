@@ -27,6 +27,7 @@ export interface AnimalCardData {
   hp?: number;            // 1–100 friendliness score
   cardNumber?: string;    // e.g. "042"
   adoptionStatus?: string; // "available" | "foster" | "resident" | "none"
+  funFact?: string;       // short highlighted callout, e.g. "Loves blueberries!"
 }
 
 const SPECIES_COLORS: Record<string, { bg: string; text: string; label: string }> = {
@@ -489,6 +490,31 @@ export default function AnimalCard({ data, cardRef, logoUrl, cardBgUrl }: Animal
                 {trait.trim()}
               </span>
             ))}
+          </div>
+        )}
+
+        {/* === FUN FACT CALLOUT === */}
+        {data.funFact && (
+          <div style={{
+            background: `linear-gradient(135deg, ${speciesStyle.bg}18, ${speciesStyle.bg}10)`,
+            borderRadius: "12px",
+            padding: "8px 14px",
+            border: `2px solid ${speciesStyle.bg}55`,
+            display: "flex",
+            alignItems: "flex-start",
+            gap: "8px",
+          }}>
+            <span style={{ fontSize: "18px", flexShrink: 0, lineHeight: 1.4 }}>⭐</span>
+            <p style={{
+              fontSize: "15px",
+              lineHeight: 1.45,
+              color: "#3a2e22",
+              margin: 0,
+              fontWeight: 700,
+              fontFamily: "'Baloo 2', cursive",
+            }}>
+              {data.funFact}
+            </p>
           </div>
         )}
 
