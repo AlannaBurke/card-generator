@@ -30,15 +30,15 @@ export interface AnimalCardData {
   funFact?: string;       // short highlighted callout, e.g. "Loves blueberries!"
 }
 
-const SPECIES_COLORS: Record<string, { bg: string; text: string; label: string }> = {
-  rabbit:        { bg: "#4BBFB8", text: "#fff",     label: "Rabbit" },
-  "guinea pig":  { bg: "#F4A88A", text: "#4a2e1a",  label: "Guinea Pig" },
-  hamster:       { bg: "#E8879A", text: "#fff",      label: "Hamster" },
-  rat:           { bg: "#7CB87C", text: "#fff",      label: "Rat" },
-  mouse:         { bg: "#A89BD4", text: "#fff",      label: "Mouse" },
-  chinchilla:    { bg: "#8BAED4", text: "#fff",      label: "Chinchilla" },
-  gerbil:        { bg: "#D4A85A", text: "#fff",      label: "Gerbil" },
-  other:         { bg: "#2AADA8", text: "#fff",      label: "Small Animal" },
+const SPECIES_COLORS: Record<string, { bg: string; text: string; label: string; icon: string }> = {
+  rabbit:        { bg: "#4BBFB8", text: "#fff",     label: "Rabbit",       icon: "🐰" },
+  "guinea pig":  { bg: "#F4A88A", text: "#4a2e1a",  label: "Guinea Pig",   icon: "🐹" },
+  hamster:       { bg: "#E8879A", text: "#fff",      label: "Hamster",      icon: "🐹" },
+  rat:           { bg: "#7CB87C", text: "#fff",      label: "Rat",          icon: "🐀" },
+  mouse:         { bg: "#A89BD4", text: "#fff",      label: "Mouse",        icon: "🐭" },
+  chinchilla:    { bg: "#8BAED4", text: "#fff",      label: "Chinchilla",   icon: "🐾" },
+  gerbil:        { bg: "#D4A85A", text: "#fff",      label: "Gerbil",       icon: "🐿️" },
+  other:         { bg: "#2AADA8", text: "#fff",      label: "Small Animal", icon: "🐾" },
 };
 
 const ADOPTION_STATUS: Record<string, { label: string; bg: string; text: string; icon: string }> = {
@@ -340,6 +340,9 @@ export default function AnimalCard({ data, cardRef, logoUrl, cardBgUrl }: Animal
               )}
             </div>
             <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "5px",
               fontSize: "16px",
               color: speciesStyle.text,
               opacity: 0.9,
@@ -347,6 +350,7 @@ export default function AnimalCard({ data, cardRef, logoUrl, cardBgUrl }: Animal
               letterSpacing: "0.5px",
               marginTop: "2px",
             }}>
+              <span style={{ fontSize: "18px", lineHeight: 1 }}>{speciesStyle.icon}</span>
               {speciesStyle.label}
             </div>
           </div>
