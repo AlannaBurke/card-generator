@@ -111,3 +111,5 @@ temp/
 # Manus dev-only debug collector (not needed in production)
 client/public/__manus__/
 dist/public/__manus__/
+
+.github/workflows/deploy.yml
