@@ -64,7 +64,7 @@ const DEFAULT_DATA: AnimalCardData = {
   weight: "",
   personality: "",
   bio: "",
-  photoUrl: null,
+  photoUrl: undefined,
   hp: 75,
   cardNumber: "",
   adoptionStatus: "none",
@@ -651,24 +651,24 @@ export default function Home() {
             {/* Card flip container */}
             <div style={{
               perspective: "1200px",
-              width: "300px",
-              height: "420px",
+              width: "280px",
+              height: "390px",
               flexShrink: 0,
               position: "relative",
             }}>
               <div style={{
-                width: "300px",
-                height: "420px",
+                width: "280px",
+                height: "390px",
                 transition: "transform 0.7s cubic-bezier(0.4, 0, 0.2, 1)",
                 transformStyle: "preserve-3d",
                 transform: showBack ? "rotateY(180deg)" : "rotateY(0deg)",
                 position: "relative",
               }}>
-                {/* Front — scaled 600×840 → 300×420 */}
+                {/* Front — scaled 560×780 → 280×390 */}
                 <div style={{
                   position: "absolute",
-                  width: "300px",
-                  height: "420px",
+                  width: "280px",
+                  height: "390px",
                   backfaceVisibility: "hidden",
                   WebkitBackfaceVisibility: "hidden",
                   overflow: "hidden",
@@ -677,8 +677,8 @@ export default function Home() {
                   <div style={{
                     transform: "scale(0.5)",
                     transformOrigin: "top left",
-                    width: "600px",
-                    height: "840px",
+                    width: "560px",
+                    height: "780px",
                   }}>
                     <AnimalCard
                       data={formData}
@@ -691,8 +691,8 @@ export default function Home() {
                 {/* Back — rendered with real HALT logo */}
                 <div style={{
                   position: "absolute",
-                  width: "300px",
-                  height: "420px",
+                  width: "280px",
+                  height: "390px",
                   backfaceVisibility: "hidden",
                   WebkitBackfaceVisibility: "hidden",
                   transform: "rotateY(180deg)",
@@ -702,8 +702,8 @@ export default function Home() {
                   <div style={{
                     transform: "scale(0.5)",
                     transformOrigin: "top left",
-                    width: "600px",
-                    height: "840px",
+                    width: "560px",
+                    height: "780px",
                   }}>
                     <AnimalCardBack />
                   </div>
@@ -758,8 +758,8 @@ export default function Home() {
           position: "fixed",
           left: "-9999px",
           top: 0,
-          width: "600px",
-          height: "840px",
+          width: "560px",
+          height: "780px",
           pointerEvents: "none",
           zIndex: -1,
           overflow: "hidden",

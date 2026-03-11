@@ -34,8 +34,8 @@ interface Adjustments {
 
 const DEFAULT_ADJ: Adjustments = { brightness: 100, contrast: 100, saturation: 100 };
 
-// 4:3 crop — works well for square and portrait animal photos
-const CARD_PHOTO_ASPECT = 4 / 3;
+// 1:1 square crop — works best for animal portrait photos in the card
+const CARD_PHOTO_ASPECT = 1;
 
 function centerAspectCrop(w: number, h: number) {
   return centerCrop(
@@ -280,7 +280,7 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                     ✂️ Crop
                   </Label>
                   <p style={{ fontSize: "11px", color: "#8a7a6a", margin: 0, lineHeight: 1.5 }}>
-                    Crop is locked to 4:3 ratio — works great for square and portrait animal photos.
+                    Crop is locked to 1:1 square — works best for animal portraits in the card.
                   </p>
                   <button
                     onClick={() => { setCrop(undefined); setCompletedCrop(undefined); }}
