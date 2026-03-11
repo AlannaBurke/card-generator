@@ -52,7 +52,8 @@ const SPECIES_ICONS: Record<string, string> = {
 };
 
 // Footer logo — transparent PNG, use drop-shadow not background
-const HALT_LOGO_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/logo-square_34fc5458.png";
+// Single canonical URL used everywhere (header, card footer, card back)
+export const HALT_LOGO_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/logo-square_ae1b8185.png";
 
 const SPECIES_COLORS: Record<string, { bg: string; text: string; label: string; tagText: string }> = {
   rabbit:        { bg: "#4BBFB8", text: "#fff",     label: "Rabbit",       tagText: "#1a6e6a" },
@@ -114,7 +115,7 @@ function PawPrint({ style }: { style?: React.CSSProperties }) {
 interface AnimalCardProps {
   data: AnimalCardData;
   cardRef?: React.RefObject<HTMLDivElement | null>;
-  logoUrl: string;
+  logoUrl?: string; // kept for backward compat but unused — logo is HALT_LOGO_URL constant
   cardBgUrl: string;
 }
 
@@ -185,12 +186,11 @@ export default function AnimalCard({ data, cardRef, cardBgUrl }: AnimalCardProps
         background: "#fdf6ec",
       }}
     >
-      {/* Card background texture — contained within overflow:hidden */}
+      {/* Card background texture — botanical illustration, clipped by overflow:hidden */}
       <img
         src={cardBgUrl}
         alt=""
         aria-hidden="true"
-        crossOrigin="anonymous"
         style={{
           position: "absolute",
           inset: 0,
@@ -200,8 +200,17 @@ export default function AnimalCard({ data, cardRef, cardBgUrl }: AnimalCardProps
           objectPosition: "center",
           zIndex: 0,
           pointerEvents: "none",
+          opacity: 0.55,
         }}
       />
+      {/* Semi-transparent overlay for text contrast over botanical background */}
+      <div style={{
+        position: "absolute",
+        inset: 0,
+        background: "rgba(253,246,236,0.55)",
+        zIndex: 0,
+        pointerEvents: "none",
+      }} />
 
       {/* Paw watermark */}
       <PawPrint style={{
@@ -304,7 +313,6 @@ export default function AnimalCard({ data, cardRef, cardBgUrl }: AnimalCardProps
             <img
               src={data.photoUrl}
               alt={data.name}
-              crossOrigin="anonymous"
               style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top", display: "block" }}
             />
           ) : (

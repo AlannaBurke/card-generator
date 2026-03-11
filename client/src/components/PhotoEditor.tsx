@@ -2,15 +2,18 @@
  * PhotoEditor — Modal photo editing component
  * Design: Cottagecore Pokédex — matches HALT brand
  * Features:
- *   - Crop (react-image-crop)
+ *   - Crop (react-image-crop, locked to 4:3 — square/portrait friendly)
  *   - Rotate (90° CW/CCW)
  *   - Brightness, Contrast, Saturation sliders
  *   - Auto-adjust (normalises brightness/contrast)
  *   - Reset to original
  *   - Apply → returns edited data URL
+ *
+ * Fix: applyEdits no longer uses useCallback (avoids stale closure on onApply).
+ *      Uses naturalWidth/naturalHeight for correct pixel math regardless of display size.
  */
 
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import ReactCrop, { type Crop, type PixelCrop, centerCrop, makeAspectCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { Button } from "@/components/ui/button";
@@ -18,7 +21,7 @@ import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 
 interface PhotoEditorProps {
-  src: string;           // original data URL
+  src: string;           // original data URL or blob URL
   onApply: (result: string) => void;
   onClose: () => void;
 }
@@ -31,9 +34,8 @@ interface Adjustments {
 
 const DEFAULT_ADJ: Adjustments = { brightness: 100, contrast: 100, saturation: 100 };
 
-// Card photo area is 530px wide × 248–268px tall ≈ 2:1 ratio (landscape)
-// We lock the crop to this ratio so the result fills the card photo area perfectly
-const CARD_PHOTO_ASPECT = 530 / 258; // ~2.05:1
+// 4:3 crop — works well for square and portrait animal photos
+const CARD_PHOTO_ASPECT = 4 / 3;
 
 function centerAspectCrop(w: number, h: number) {
   return centerCrop(
@@ -51,23 +53,23 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
   const [activeTab, setActiveTab] = useState<"crop" | "adjust">("crop");
 
   // When image loads, set a default centered crop
-  const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-    const { width, height } = e.currentTarget;
-    setCrop(centerAspectCrop(width, height));
-  }, []);
+  const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const { naturalWidth, naturalHeight } = e.currentTarget;
+    setCrop(centerAspectCrop(naturalWidth, naturalHeight));
+  };
 
   const rotate = (dir: "cw" | "ccw") => {
     setRotation((r) => (r + (dir === "cw" ? 90 : -90) + 360) % 360);
   };
 
   const autoAdjust = () => {
-    // Bump brightness and contrast slightly for typical animal photos
     setAdj({ brightness: 110, contrast: 115, saturation: 115 });
   };
 
   const resetAdj = () => setAdj(DEFAULT_ADJ);
 
-  const applyEdits = useCallback(() => {
+  // NOT useCallback — direct function so it always has fresh closure over onApply, completedCrop, rotation, adj
+  const applyEdits = () => {
     const image = imgRef.current;
     if (!image) return;
 
@@ -75,11 +77,15 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Work out the source crop region (in natural image pixels)
-    const scaleX = image.naturalWidth / image.width;
-    const scaleY = image.naturalHeight / image.height;
+    // Use natural dimensions for pixel-accurate math
+    const natW = image.naturalWidth;
+    const natH = image.naturalHeight;
 
-    let srcX = 0, srcY = 0, srcW = image.naturalWidth, srcH = image.naturalHeight;
+    // Scale from display pixels → natural pixels
+    const scaleX = natW / image.width;
+    const scaleY = natH / image.height;
+
+    let srcX = 0, srcY = 0, srcW = natW, srcH = natH;
     if (completedCrop && completedCrop.width > 0 && completedCrop.height > 0) {
       srcX = completedCrop.x * scaleX;
       srcY = completedCrop.y * scaleY;
@@ -87,8 +93,8 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
       srcH = completedCrop.height * scaleY;
     }
 
-    // Output size: keep crop dimensions, max 1200px on longest side
-    const maxDim = 1200;
+    // Output size: keep crop dimensions, max 1400px on longest side
+    const maxDim = 1400;
     let outW = srcW, outH = srcH;
     if (rotation === 90 || rotation === 270) { [outW, outH] = [outH, outW]; }
     const scale = Math.min(1, maxDim / Math.max(outW, outH));
@@ -102,7 +108,6 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
     ctx.translate(finalW / 2, finalH / 2);
     ctx.rotate((rotation * Math.PI) / 180);
 
-    // Draw the cropped region
     if (rotation === 0 || rotation === 180) {
       ctx.drawImage(image, srcX, srcY, srcW, srcH, -finalW / 2, -finalH / 2, finalW, finalH);
     } else {
@@ -110,8 +115,7 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
     }
     ctx.restore();
 
-    // Apply CSS filters via ImageData manipulation isn't needed —
-    // we use a second canvas with filter applied
+    // Apply CSS filters on a second canvas
     const filtered = document.createElement("canvas");
     filtered.width = finalW;
     filtered.height = finalH;
@@ -120,8 +124,9 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
     fctx.filter = `brightness(${adj.brightness}%) contrast(${adj.contrast}%) saturate(${adj.saturation}%)`;
     fctx.drawImage(canvas, 0, 0);
 
-    onApply(filtered.toDataURL("image/jpeg", 0.92));
-  }, [completedCrop, rotation, adj, onApply]);
+    const result = filtered.toDataURL("image/jpeg", 0.92);
+    onApply(result);
+  };
 
   const filterStyle = `brightness(${adj.brightness}%) contrast(${adj.contrast}%) saturate(${adj.saturation}%)`;
 
@@ -275,7 +280,7 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                     ✂️ Crop
                   </Label>
                   <p style={{ fontSize: "11px", color: "#8a7a6a", margin: 0, lineHeight: 1.5 }}>
-                    Crop is locked to the card's photo ratio (2:1 landscape) so your photo fills the card perfectly.
+                    Crop is locked to 4:3 ratio — works great for square and portrait animal photos.
                   </p>
                   <button
                     onClick={() => { setCrop(undefined); setCompletedCrop(undefined); }}

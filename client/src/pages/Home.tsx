@@ -21,11 +21,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
-import AnimalCard, { AnimalCardBack, AnimalCardData } from "@/components/AnimalCard";
+import AnimalCard, { AnimalCardBack, AnimalCardData, HALT_LOGO_URL } from "@/components/AnimalCard";
 import PhotoEditor from "@/components/PhotoEditor";
 import { useCardDownload } from "@/hooks/useCardDownload";
 
-const LOGO_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/logo-square_17e2654f.png";
+// Logo URL is now exported from AnimalCard.tsx as HALT_LOGO_URL — single source of truth
 const CARD_BG_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/card-bg-texture-NUuh8tVs2vLnJ3cEafbiB8.webp";
 const HERO_BG_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/app-hero-bg-CWeUKfCSYNAGPYj2aoU9jQ.webp";
 // Card back is now rendered as a React component using the real HALT logo
@@ -192,7 +192,7 @@ export default function Home() {
         }} />
         <div style={{ position: "relative", zIndex: 1, maxWidth: "900px", margin: "0 auto", textAlign: "center" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "16px", marginBottom: "12px" }}>
-            <img src={LOGO_URL} alt="HALT Logo" style={{ width: "72px", height: "72px", objectFit: "contain", filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.2))" }} />
+            <img src={HALT_LOGO_URL} alt="HALT Logo" style={{ width: "72px", height: "72px", objectFit: "contain", filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.2))" }} />
             <div style={{ textAlign: "left" }}>
               <h1 style={{
                 fontFamily: "'Fredoka One', cursive",
@@ -683,7 +683,7 @@ export default function Home() {
                     <AnimalCard
                       data={formData}
                       cardRef={cardRef}
-                      logoUrl={LOGO_URL}
+                      logoUrl={HALT_LOGO_URL}
                       cardBgUrl={CARD_BG_URL}
                     />
                   </div>
@@ -768,7 +768,7 @@ export default function Home() {
         <AnimalCard
           data={formData}
           cardRef={downloadCardRef}
-          logoUrl={LOGO_URL}
+          logoUrl={HALT_LOGO_URL}
           cardBgUrl={CARD_BG_URL}
         />
       </div>

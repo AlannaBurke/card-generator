@@ -8,10 +8,10 @@
 
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import AnimalCard, { AnimalCardData } from "@/components/AnimalCard";
+import AnimalCard, { AnimalCardData, HALT_LOGO_URL } from "@/components/AnimalCard";
 import { Button } from "@/components/ui/button";
 
-const LOGO_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/logo-square_17e2654f.png";
+// Logo URL unified — imported from AnimalCard.tsx as HALT_LOGO_URL
 const CARD_BG_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/card-bg-texture-NUuh8tVs2vLnJ3cEafbiB8.webp";
 
 const CARDS_PER_SHEET = 6;
@@ -59,7 +59,7 @@ export default function PrintSheet() {
         justifyContent: "space-between",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <img src={LOGO_URL} alt="HALT" style={{ width: "40px", height: "40px", objectFit: "contain" }} />
+          <img src={HALT_LOGO_URL} alt="HALT" style={{ width: "40px", height: "40px", objectFit: "contain" }} />
           <div>
             <h1 style={{ fontFamily: "'Fredoka One', cursive", fontSize: "20px", color: "#fff", margin: 0 }}>
               🖨️ Print Sheet
@@ -131,7 +131,7 @@ export default function PrintSheet() {
               }}>
                 <AnimalCard
                   data={cardData}
-                  logoUrl={LOGO_URL}
+                  logoUrl={HALT_LOGO_URL}
                   cardBgUrl={CARD_BG_URL}
                 />
               </div>
