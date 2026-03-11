@@ -31,9 +31,13 @@ interface Adjustments {
 
 const DEFAULT_ADJ: Adjustments = { brightness: 100, contrast: 100, saturation: 100 };
 
+// Card photo area is 530px wide × 248–268px tall ≈ 2:1 ratio (landscape)
+// We lock the crop to this ratio so the result fills the card photo area perfectly
+const CARD_PHOTO_ASPECT = 530 / 258; // ~2.05:1
+
 function centerAspectCrop(w: number, h: number) {
   return centerCrop(
-    makeAspectCrop({ unit: "%", width: 90 }, 1 / 1, w, h),
+    makeAspectCrop({ unit: "%", width: 90 }, CARD_PHOTO_ASPECT, w, h),
     w, h
   );
 }
@@ -204,6 +208,7 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                 crop={crop}
                 onChange={(c) => setCrop(c)}
                 onComplete={(c) => setCompletedCrop(c)}
+                aspect={CARD_PHOTO_ASPECT}
                 style={{ maxWidth: "100%", maxHeight: "60vh" }}
               >
                 <img
@@ -270,7 +275,7 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                     ✂️ Crop
                   </Label>
                   <p style={{ fontSize: "11px", color: "#8a7a6a", margin: 0, lineHeight: 1.5 }}>
-                    Drag the handles on the image to set your crop area. Leave it as-is to keep the full photo.
+                    Crop is locked to the card's photo ratio (2:1 landscape) so your photo fills the card perfectly.
                   </p>
                   <button
                     onClick={() => { setCrop(undefined); setCompletedCrop(undefined); }}

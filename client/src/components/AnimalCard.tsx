@@ -582,34 +582,51 @@ export default function AnimalCard({ data, cardRef, logoUrl, cardBgUrl }: Animal
           alignItems: "center",
           justifyContent: "space-between",
           paddingTop: "6px",
-          borderTop: `2px solid ${speciesStyle.bg}44`,
+          borderTop: `2px solid ${speciesStyle.bg}66`,
+          background: "rgba(255,255,255,0.5)",
+          borderRadius: "0 0 8px 8px",
+          marginLeft: "-14px",
+          marginRight: "-14px",
+          marginBottom: "-14px",
+          padding: "8px 14px",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <img
-              src={logoUrl}
+              src="https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/logo-square_34fc5458.png"
               alt="Helping All Little Things"
               crossOrigin="anonymous"
-              style={{ width: "44px", height: "44px", objectFit: "contain" }}
+              style={{
+                width: "44px",
+                height: "44px",
+                objectFit: "contain",
+                flexShrink: 0,
+                background: "rgba(255,255,255,0.8)",
+                borderRadius: "8px",
+                padding: "2px",
+              }}
             />
             <div>
               <div style={{
                 fontFamily: "'Fredoka One', cursive",
                 fontSize: "14px",
-                color: speciesStyle.bg,
+                color: "#1a6e6a",
                 lineHeight: 1.2,
+                fontWeight: 700,
               }}>Helping All Little Things</div>
               <div style={{
                 fontSize: "11px",
-                color: "#8a7a6a",
-                fontWeight: 700,
+                color: "#2a5a58",
+                fontWeight: 800,
+                letterSpacing: "0.2px",
               }}>helpingalllittlethings.org</div>
             </div>
           </div>
           <div style={{
             fontSize: "11px",
-            color: "#b0a898",
-            fontWeight: 700,
+            color: "#3a5a58",
+            fontWeight: 800,
             textAlign: "right",
+            lineHeight: 1.5,
           }}>
             <div>501(c)(3) Nonprofit</div>
             <div>New Hampshire</div>

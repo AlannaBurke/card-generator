@@ -61,6 +61,7 @@ export default function Home() {
   const [editorSrc, setEditorSrc] = useState<string | null>(null); // raw uploaded image for editor
   const [showEditor, setShowEditor] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  const downloadCardRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { downloadCard, isDownloading } = useCardDownload();
   const [, navigate] = useLocation();
@@ -122,8 +123,10 @@ export default function Home() {
   };
 
   const handleDownload = () => {
-    if (!cardRef.current) return;
-    downloadCard(cardRef.current, formData.name);
+    // Use the hidden full-size card (not the scaled preview) for download
+    const target = downloadCardRef.current ?? cardRef.current;
+    if (!target) return;
+    downloadCard(target, formData.name);
   };
 
   const handlePrintSheet = () => {
@@ -332,13 +335,15 @@ export default function Home() {
 
             {/* ── Name ── */}
             <div>
-              <Label style={{ fontWeight: 700, color: "#4a3c2e", fontSize: "13px", marginBottom: "6px", display: "block" }}>
-                🏷️ Name *
+              <Label style={{ fontWeight: 700, color: "#4a3c2e", fontSize: "13px", marginBottom: "6px", display: "flex", justifyContent: "space-between" }}>
+                <span>🏷️ Name *</span>
+                <span style={{ fontWeight: 400, color: "#8a7a6a" }}>{formData.name.length}/24</span>
               </Label>
               <Input
                 placeholder="e.g. Biscuit, Peanut, Clover..."
                 value={formData.name}
                 onChange={(e) => updateField("name", e.target.value)}
+                maxLength={24}
                 style={{ borderColor: "#c8dedd", borderRadius: "10px" }}
               />
             </div>
@@ -418,6 +423,7 @@ export default function Home() {
                   placeholder="e.g. 2 years"
                   value={formData.age}
                   onChange={(e) => updateField("age", e.target.value)}
+                  maxLength={12}
                   style={{ borderColor: "#c8dedd", borderRadius: "10px" }}
                 />
               </div>
@@ -429,6 +435,7 @@ export default function Home() {
                   placeholder="e.g. 1.2 lbs"
                   value={formData.weight}
                   onChange={(e) => updateField("weight", e.target.value)}
+                  maxLength={12}
                   style={{ borderColor: "#c8dedd", borderRadius: "10px" }}
                 />
               </div>
@@ -436,44 +443,49 @@ export default function Home() {
 
             {/* ── Personality ── */}
             <div>
-              <Label style={{ fontWeight: 700, color: "#4a3c2e", fontSize: "13px", marginBottom: "6px", display: "block" }}>
-                ✨ Personality Traits
-                <span style={{ fontWeight: 400, color: "#8a7a6a", marginLeft: "6px" }}>comma-separated</span>
+              <Label style={{ fontWeight: 700, color: "#4a3c2e", fontSize: "13px", marginBottom: "6px", display: "flex", justifyContent: "space-between" }}>
+                <span>✨ Personality Traits <span style={{ fontWeight: 400, color: "#8a7a6a" }}>up to 4, comma-separated</span></span>
               </Label>
               <Input
                 placeholder="e.g. Curious, Gentle, Loves cuddles"
                 value={formData.personality}
                 onChange={(e) => updateField("personality", e.target.value)}
+                maxLength={60}
                 style={{ borderColor: "#c8dedd", borderRadius: "10px" }}
               />
+              <p style={{ fontSize: "11px", color: "#8a7a6a", margin: "3px 0 0", lineHeight: 1.4 }}>Only the first 4 traits show on the card</p>
             </div>
 
             {/* ── Fun Fact ── */}
             <div>
-              <Label style={{ fontWeight: 700, color: "#4a3c2e", fontSize: "13px", marginBottom: "6px", display: "block" }}>
-                ⭐ Fun Fact
-                <span style={{ fontWeight: 400, color: "#8a7a6a", marginLeft: "6px" }}>short & snappy</span>
+              <Label style={{ fontWeight: 700, color: "#4a3c2e", fontSize: "13px", marginBottom: "6px", display: "flex", justifyContent: "space-between" }}>
+                <span>⭐ Fun Fact</span>
+                <span style={{ fontWeight: 400, color: "#8a7a6a" }}>{(formData.funFact ?? "").length}/80</span>
               </Label>
               <Input
                 placeholder="e.g. Loves blueberries! Can jump 3 feet!"
                 value={formData.funFact ?? ""}
                 onChange={(e) => updateField("funFact", e.target.value)}
+                maxLength={80}
                 style={{ borderColor: "#c8dedd", borderRadius: "10px" }}
               />
             </div>
 
             {/* ── Bio ── */}
             <div>
-              <Label style={{ fontWeight: 700, color: "#4a3c2e", fontSize: "13px", marginBottom: "6px", display: "block" }}>
-                📖 Bio / Story
+              <Label style={{ fontWeight: 700, color: "#4a3c2e", fontSize: "13px", marginBottom: "6px", display: "flex", justifyContent: "space-between" }}>
+                <span>📖 Bio / Story</span>
+                <span style={{ fontWeight: 400, color: formData.bio.length > 160 ? "#E8879A" : "#8a7a6a" }}>{formData.bio.length}/160</span>
               </Label>
               <Textarea
                 placeholder="Tell their story! How did they come to the sanctuary? What makes them special?"
                 value={formData.bio}
                 onChange={(e) => updateField("bio", e.target.value)}
+                maxLength={160}
                 rows={3}
-                style={{ borderColor: "#c8dedd", borderRadius: "10px", resize: "vertical" }}
+                style={{ borderColor: "#c8dedd", borderRadius: "10px", resize: "none" }}
               />
+              <p style={{ fontSize: "11px", color: "#8a7a6a", margin: "3px 0 0", lineHeight: 1.4 }}>3 lines max on the card</p>
             </div>
 
             {/* ── Friendliness HP ── */}
@@ -692,6 +704,31 @@ export default function Home() {
         </div>
 
       </main>
+
+      {/* === HIDDEN FULL-SIZE CARD FOR DOWNLOAD ===
+           This renders the card at actual 600×840 off-screen so html2canvas
+           captures it at full resolution without the scale(0.5) preview wrapper.
+      */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "fixed",
+          left: "-9999px",
+          top: 0,
+          width: "600px",
+          height: "840px",
+          pointerEvents: "none",
+          zIndex: -1,
+          overflow: "hidden",
+        }}
+      >
+        <AnimalCard
+          data={formData}
+          cardRef={downloadCardRef}
+          logoUrl={LOGO_URL}
+          cardBgUrl={CARD_BG_URL}
+        />
+      </div>
 
       {/* === FOOTER === */}
       <footer style={{
