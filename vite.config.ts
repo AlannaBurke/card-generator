@@ -158,6 +158,9 @@ const plugins = isManusEnv
 
 export default defineConfig({
   plugins,
+  // GitHub Pages serves the site at /card-generator/ — set base so asset URLs are correct.
+  // When GITHUB_PAGES=true is set in the deploy script, this activates the subpath.
+  base: process.env.GITHUB_PAGES ? "/card-generator/" : "/",
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),

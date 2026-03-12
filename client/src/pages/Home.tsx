@@ -242,7 +242,7 @@ export default function Home() {
             display: "inline-block",
             padding: "6px 20px",
           }}>
-            🐾 Create adorable trading cards for your sanctuary members!
+            Create adorable cards for your pets!
           </p>
         </div>
       </header>
@@ -590,21 +590,7 @@ export default function Home() {
               >
                 {isDownloading ? "⏳ Generating..." : "⬇️ Download Card"}
               </Button>
-              <Button
-                onClick={handlePrintSheet}
-                variant="outline"
-                style={{
-                  borderRadius: "12px",
-                  borderColor: "#2AADA8",
-                  color: "#2AADA8",
-                  fontFamily: "'Baloo 2', cursive",
-                  fontWeight: 700,
-                  fontSize: "13px",
-                  background: "rgba(42,173,168,0.06)",
-                }}
-              >
-                🖨️ Print Sheet
-              </Button>
+              {/* Print Sheet button hidden for now */}
               <Button
                 onClick={handleReset}
                 variant="outline"
@@ -758,9 +744,8 @@ export default function Home() {
             <ul style={{ margin: 0, padding: "0 0 0 16px", fontSize: "13px", color: "#4a3c2e", lineHeight: 1.7 }}>
               <li>Use a <strong>clear, well-lit photo</strong> — the editor can brighten dark shots</li>
               <li>Use <strong>✂️ Edit Photo</strong> to crop, rotate, and adjust after uploading</li>
-              <li>Square or portrait photos work best for the card frame</li>
+              <li>Use a <strong>landscape or square photo</strong> for best results — the card frame is wider than it is tall</li>
               <li>Keep the bio to <strong>2–3 sentences</strong> — it's a card, not a novel! 🐾</li>
-              <li>Use <strong>🖨️ Print Sheet</strong> to print 6 cards per page on cardstock</li>
             </ul>
           </div>
         </div>
