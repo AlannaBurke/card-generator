@@ -791,7 +791,7 @@ export default function Home() {
           style={{ color: "#2AADA8", fontWeight: 700, textDecoration: "none" }}>
           Helping All Little Things
         </a>
-        <span> · 501(c)(3) Small Animal Rescue · New Hampshire</span>
+        <span> · © {new Date().getFullYear()} Helping All Little Things</span>
       </footer>
 
     </div>
