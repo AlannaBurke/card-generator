@@ -368,9 +368,8 @@ export default function AnimalCard({ data, cardRef, cardBgUrl }: AnimalCardProps
               Helping All Little Things
             </div>
           </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: "10px", color: "#2a6a66", fontWeight: 800, letterSpacing: "0.3px" }}>helpingalllittlethings.org</div>
-            <div style={{ fontSize: "9px", color: "#7a9a98", marginTop: "1px" }}>© {new Date().getFullYear()} Helping All Little Things</div>
+          <div style={{ fontSize: "10px", color: "#2a6a66", fontWeight: 800, letterSpacing: "0.3px" }}>
+            helpingalllittlethings.org
           </div>
         </div>
 
