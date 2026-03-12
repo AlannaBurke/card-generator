@@ -46,12 +46,29 @@ interface Adjustments {
 
 const DEFAULT_ADJ: Adjustments = { brightness: 100, contrast: 100, saturation: 100 };
 
-/** Default crop: 85% of the image, centered, no aspect lock */
-function centerFreeCrop(displayW: number, displayH: number): Crop {
-  const pct = 85;
-  const x = (100 - pct) / 2;
-  const y = (100 - pct) / 2;
-  return { unit: "%", x, y, width: pct, height: pct };
+// Card photo area: 520×320px (INNER_W = 560 - 20*2 = 520, photoH = 320)
+// Aspect ratio = 520/320 = 1.625 (13:8 landscape)
+const CARD_PHOTO_ASPECT = 520 / 320; // 1.625
+
+/** Default crop: centered, locked to the card photo aspect ratio */
+function centerCardCrop(displayW: number, displayH: number): Crop {
+  // makeAspectCrop fills as much of the image as possible at the given ratio
+  const cropWidthPct = 90;
+  const cropHeightPct = cropWidthPct / CARD_PHOTO_ASPECT * (displayW / displayH) * 100 / 100;
+  // Use percentage-based crop locked to the card aspect
+  // width% * displayW / (height% * displayH) = CARD_PHOTO_ASPECT
+  // => height% = width% * displayW / (CARD_PHOTO_ASPECT * displayH)
+  const widthPct = Math.min(90, 90);
+  const heightPct = Math.min(100, widthPct * displayW / (CARD_PHOTO_ASPECT * displayH) * 100);
+  const finalWidth = Math.min(widthPct, 100);
+  const finalHeight = Math.min(heightPct, 100);
+  return {
+    unit: "%",
+    x: (100 - finalWidth) / 2,
+    y: (100 - finalHeight) / 2,
+    width: finalWidth,
+    height: finalHeight,
+  };
 }
 
 /** Rotate a loaded HTMLImageElement by degrees and return a data URL */
@@ -93,7 +110,7 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
   // When the crop image loads (or rotatedSrc changes), set a centered default crop
   const onCropImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const { width, height } = e.currentTarget;
-    setCrop(centerFreeCrop(width, height));
+    setCrop(centerCardCrop(width, height));
     setCompletedCrop(undefined);
   }, []);
 
@@ -267,6 +284,7 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                   crop={crop}
                   onChange={(c) => setCrop(c)}
                   onComplete={(c) => setCompletedCrop(c)}
+                  aspect={CARD_PHOTO_ASPECT}
                   style={{ maxWidth: "100%", maxHeight: "60vh" }}
                 >
                   <img
@@ -329,13 +347,13 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                       ✂️ Crop
                     </Label>
                     <p style={{ fontSize: "11px", color: "#8a7a6a", margin: 0, lineHeight: 1.5 }}>
-                      Drag the handles to select any area. Portrait, square, or landscape — all work on the card.
+                      Locked to the card photo ratio (13:8). Drag to reposition — what you see here is exactly what appears on the card.
                     </p>
                     <button
                       onClick={() => {
                         const img = cropImgRef.current;
                         if (img) {
-                          setCrop(centerFreeCrop(img.width, img.height));
+                          setCrop(centerCardCrop(img.width, img.height));
                         }
                         setCompletedCrop(undefined);
                       }}
