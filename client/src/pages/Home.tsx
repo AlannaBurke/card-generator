@@ -520,7 +520,7 @@ export default function Home() {
                 <span style={{ fontWeight: 400, color: formData.bio.length > 220 ? "#E8879A" : "#8a7a6a" }}>{formData.bio.length}/240</span>
               </Label>
               <Textarea
-                placeholder="Tell their story! How did they come to the sanctuary? What makes them special?"
+                placeholder="Tell their story! How did they come to the rescue? What makes them special?"
                 value={formData.bio}
                 onChange={(e) => updateField("bio", e.target.value)}
                 maxLength={240}

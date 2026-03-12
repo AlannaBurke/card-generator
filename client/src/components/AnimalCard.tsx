@@ -143,11 +143,11 @@ export function AnimalCardBack({ style }: { style?: React.CSSProperties }) {
           helpingalllittlethings.org
         </div>
         <div style={{ marginTop: "12px", background: "rgba(255,255,255,0.2)", borderRadius: "20px", padding: "6px 20px", display: "inline-block" }}>
-          <span style={{ fontSize: "13px", color: "#fff", fontWeight: 800 }}>🐾 Small Animals, Big Hearts 🐾</span>
+          <span style={{ fontSize: "13px", color: "#fff", fontWeight: 800 }}>Finding loving homes for small animals.</span>
         </div>
-      </div>
-      <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)", position: "relative", zIndex: 1, letterSpacing: "0.5px" }}>
-        501(c)(3) Nonprofit · New Hampshire
+        <div style={{ marginTop: "10px", fontSize: "11px", color: "rgba(255,255,255,0.6)", letterSpacing: "0.5px" }}>
+          © {new Date().getFullYear()} Helping All Little Things
+        </div>
       </div>
     </div>
   );
@@ -207,7 +207,7 @@ export default function AnimalCard({ data, cardRef, cardBgUrl }: AnimalCardProps
         display: "flex",
         flexDirection: "column",
         padding: "20px 20px 0 20px",
-        gap: "8px",
+        gap: "7px",
       }}>
 
         {/* HEADER: name + card# | species icon + label | HP */}
@@ -368,8 +368,9 @@ export default function AnimalCard({ data, cardRef, cardBgUrl }: AnimalCardProps
               Helping All Little Things
             </div>
           </div>
-          <div style={{ fontSize: "10px", color: "#2a6a66", fontWeight: 800, letterSpacing: "0.3px" }}>
-            helpingalllittlethings.org
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: "10px", color: "#2a6a66", fontWeight: 800, letterSpacing: "0.3px" }}>helpingalllittlethings.org</div>
+            <div style={{ fontSize: "9px", color: "#7a9a98", marginTop: "1px" }}>© {new Date().getFullYear()} Helping All Little Things</div>
           </div>
         </div>
 
