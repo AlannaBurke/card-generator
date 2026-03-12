@@ -8,7 +8,7 @@
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist && node -e \"const fs=require('fs');const p='dist/public/__manus__';if(fs.existsSync(p))fs.rmSync(p,{recursive:true,force:true});\"",
     "build:static": "VITE_APP_ID='' vite build && node -e \"const fs=require('fs');const p='dist/public/__manus__';if(fs.existsSync(p))fs.rmSync(p,{recursive:true,force:true});\"",
     "build:gh-pages": "GITHUB_PAGES=true VITE_APP_ID='' vite build && node -e \"const fs=require('fs');const p='dist/public/__manus__';if(fs.existsSync(p))fs.rmSync(p,{recursive:true,force:true});\"",
-    "deploy": "pnpm build:gh-pages && gh-pages -d dist/public",
+    "gh-deploy": "pnpm build:gh-pages && gh-pages -d dist/public",
     "start": "NODE_ENV=production node dist/index.js",
     "preview": "vite preview --host",
     "check": "tsc --noEmit",
