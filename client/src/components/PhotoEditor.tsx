@@ -31,6 +31,8 @@ import "react-image-crop/dist/ReactCrop.css";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
+import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 
 interface PhotoEditorProps {
   src: string;           // data URL from FileReader or blob→data conversion
@@ -52,12 +54,6 @@ const CARD_PHOTO_ASPECT = 520 / 320; // 1.625
 
 /** Default crop: centered, locked to the card photo aspect ratio */
 function centerCardCrop(displayW: number, displayH: number): Crop {
-  // makeAspectCrop fills as much of the image as possible at the given ratio
-  const cropWidthPct = 90;
-  const cropHeightPct = cropWidthPct / CARD_PHOTO_ASPECT * (displayW / displayH) * 100 / 100;
-  // Use percentage-based crop locked to the card aspect
-  // width% * displayW / (height% * displayH) = CARD_PHOTO_ASPECT
-  // => height% = width% * displayW / (CARD_PHOTO_ASPECT * displayH)
   const widthPct = Math.min(90, 90);
   const heightPct = Math.min(100, widthPct * displayW / (CARD_PHOTO_ASPECT * displayH) * 100);
   const finalWidth = Math.min(widthPct, 100);
@@ -91,30 +87,56 @@ function rotateToDataUrl(img: HTMLImageElement, degrees: number): string {
   return canvas.toDataURL("image/jpeg", 0.95);
 }
 
-export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps) {
-  // originalImgRef: hidden img element that always holds the original upload
-  const originalImgRef = useRef<HTMLImageElement | null>(null);
+const STYLES = [
+  {
+    id: "pokemon" as const,
+    label: "Pokémon",
+    emoji: "⚡",
+    desc: "Bold outlines, vibrant colors, chibi Pokémon card style",
+    gradient: "linear-gradient(135deg, #FFCB05, #3D7DCA)",
+    textColor: "#1a3a6a",
+  },
+  {
+    id: "kawaii" as const,
+    label: "Kawaii",
+    emoji: "🌸",
+    desc: "Soft pastels, big sparkly eyes, Japanese sticker aesthetic",
+    gradient: "linear-gradient(135deg, #FFB7D5, #C8A4E8)",
+    textColor: "#6a1a5a",
+  },
+  {
+    id: "comic" as const,
+    label: "Comic Book",
+    emoji: "💥",
+    desc: "Bold ink outlines, halftone dots, retro pop-art energy",
+    gradient: "linear-gradient(135deg, #FF6B35, #F7C59F)",
+    textColor: "#5a1a00",
+  },
+];
 
-  // rotatedSrc: what the ReactCrop UI shows — updated on each rotation
+export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps) {
+  const originalImgRef = useRef<HTMLImageElement | null>(null);
   const [rotatedSrc, setRotatedSrc] = useState<string>(src);
   const [rotation, setRotation] = useState(0);
-
   const [crop, setCrop] = useState<Crop>();
   const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
   const [adj, setAdj] = useState<Adjustments>(DEFAULT_ADJ);
-  const [activeTab, setActiveTab] = useState<"crop" | "adjust">("crop");
-
-  // cropImgRef: the <img> inside ReactCrop — used for getBoundingClientRect()
+  const [activeTab, setActiveTab] = useState<"crop" | "adjust" | "style">("crop");
   const cropImgRef = useRef<HTMLImageElement>(null);
 
-  // When the crop image loads (or rotatedSrc changes), set a centered default crop
+  // AI style state
+  const [styledPreview, setStyledPreview] = useState<string | null>(null);
+  const [generatingStyle, setGeneratingStyle] = useState<string | null>(null);
+  const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
+
+  const styleTransfer = trpc.photo.styleTransfer.useMutation();
+
   const onCropImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const { width, height } = e.currentTarget;
     setCrop(centerCardCrop(width, height));
     setCompletedCrop(undefined);
   }, []);
 
-  // Rotate: render original to canvas at new angle, use result as crop source
   const rotate = useCallback((dir: "cw" | "ccw") => {
     const origImg = originalImgRef.current;
     if (!origImg || !origImg.complete || origImg.naturalWidth === 0) return;
@@ -130,23 +152,22 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
   const resetAdj = () => setAdj(DEFAULT_ADJ);
 
   const applyEdits = useCallback(() => {
-    const img = cropImgRef.current;
-    if (!img) {
-      console.error("PhotoEditor: cropImgRef is null");
+    // If user has a styled preview selected, use that directly
+    if (activeTab === "style" && styledPreview) {
+      onApply(styledPreview);
       return;
     }
 
-    // ── KEY FIX: use getBoundingClientRect() for the true rendered size ──────
+    const img = cropImgRef.current;
+    if (!img) return;
+
     const rect = img.getBoundingClientRect();
     const displayW = rect.width;
     const displayH = rect.height;
     const natW = img.naturalWidth;
     const natH = img.naturalHeight;
 
-    if (displayW === 0 || displayH === 0 || natW === 0 || natH === 0) {
-      console.error("PhotoEditor: image has zero dimensions", { displayW, displayH, natW, natH });
-      return;
-    }
+    if (displayW === 0 || displayH === 0 || natW === 0 || natH === 0) return;
 
     const scaleX = natW / displayW;
     const scaleY = natH / displayH;
@@ -159,13 +180,11 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
       cropH = Math.round(completedCrop.height * scaleY);
     }
 
-    // Clamp to natural image bounds
     cropX = Math.max(0, Math.min(cropX, natW - 1));
     cropY = Math.max(0, Math.min(cropY, natH - 1));
     cropW = Math.max(1, Math.min(cropW, natW - cropX));
     cropH = Math.max(1, Math.min(cropH, natH - cropY));
 
-    // Output canvas — max 1400px on longest side
     const maxDim = 1400;
     const scale = Math.min(1, maxDim / Math.max(cropW, cropH));
     const outW = Math.round(cropW * scale);
@@ -175,24 +194,47 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
     output.width = outW;
     output.height = outH;
     const ctx = output.getContext("2d")!;
-
-    // Apply adjustments via CSS filter on canvas
     ctx.filter = `brightness(${adj.brightness}%) contrast(${adj.contrast}%) saturate(${adj.saturation}%)`;
     ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, outW, outH);
 
     const result = output.toDataURL("image/jpeg", 0.92);
-    if (!result || result === "data:,") {
-      console.error("PhotoEditor: canvas produced empty result");
-      return;
-    }
+    if (!result || result === "data:,") return;
     onApply(result);
-  }, [completedCrop, adj, onApply]);
+  }, [completedCrop, adj, onApply, activeTab, styledPreview]);
+
+  const handleGenerateStyle = async (styleId: "pokemon" | "kawaii" | "comic") => {
+    setGeneratingStyle(styleId);
+    setStyledPreview(null);
+    setSelectedStyle(null);
+    try {
+      const result = await styleTransfer.mutateAsync({
+        imageDataUrl: rotatedSrc,
+        style: styleId,
+      });
+      if (result.url) {
+        // Fetch the CDN URL and convert to data URL so it can be used on canvas
+        const resp = await fetch(result.url);
+        const blob = await resp.blob();
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const dataUrl = ev.target?.result as string;
+          setStyledPreview(dataUrl);
+          setSelectedStyle(styleId);
+        };
+        reader.readAsDataURL(blob);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Style generation failed";
+      toast.error(`Style generation failed: ${msg}`);
+    } finally {
+      setGeneratingStyle(null);
+    }
+  };
 
   const filterStyle = `brightness(${adj.brightness}%) contrast(${adj.contrast}%) saturate(${adj.saturation}%)`;
 
   return (
     <>
-      {/* Hidden original image for rotation math — must NOT have crossOrigin if src is data URL */}
       <img
         ref={originalImgRef}
         src={src}
@@ -218,7 +260,7 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
           background: "#fdf6ec",
           borderRadius: "20px",
           boxShadow: "0 24px 80px rgba(0,0,0,0.4)",
-          width: "min(92vw, 860px)",
+          width: "min(92vw, 900px)",
           maxHeight: "92vh",
           display: "flex",
           flexDirection: "column",
@@ -246,7 +288,7 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
 
           {/* Tab bar */}
           <div style={{ display: "flex", borderBottom: "1.5px solid rgba(42,173,168,0.2)", background: "rgba(255,255,255,0.6)", flexShrink: 0 }}>
-            {(["crop", "adjust"] as const).map((tab) => (
+            {(["crop", "adjust", "style"] as const).map((tab) => (
               <button key={tab} onClick={() => setActiveTab(tab)} style={{
                 flex: 1,
                 padding: "10px",
@@ -260,7 +302,7 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                 cursor: "pointer",
                 transition: "all 0.15s",
               }}>
-                {tab === "crop" ? "✂️ Crop & Rotate" : "🎨 Adjust"}
+                {tab === "crop" ? "✂️ Crop & Rotate" : tab === "adjust" ? "🎨 Adjust" : "✨ AI Style"}
               </button>
             ))}
           </div>
@@ -279,7 +321,60 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
               background: "#2a2018",
               minHeight: "300px",
             }}>
-              {activeTab === "crop" ? (
+              {activeTab === "style" ? (
+                <div style={{ display: "flex", gap: "16px", alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
+                  {/* Original */}
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: "11px", color: "#aaa", marginBottom: "6px", fontWeight: 700 }}>ORIGINAL</div>
+                    <img
+                      src={rotatedSrc}
+                      alt="Original"
+                      style={{ maxWidth: "200px", maxHeight: "200px", borderRadius: "10px", border: "2px solid rgba(255,255,255,0.2)", display: "block" }}
+                    />
+                  </div>
+                  {/* Styled preview */}
+                  {(generatingStyle || styledPreview) && (
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: "11px", color: "#aaa", marginBottom: "6px", fontWeight: 700 }}>
+                        {generatingStyle ? "GENERATING..." : `${STYLES.find(s => s.id === selectedStyle)?.label.toUpperCase()} STYLE`}
+                      </div>
+                      {generatingStyle ? (
+                        <div style={{
+                          width: "200px",
+                          height: "200px",
+                          borderRadius: "10px",
+                          background: "rgba(255,255,255,0.08)",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "12px",
+                          border: "2px dashed rgba(42,173,168,0.5)",
+                        }}>
+                          <div style={{ fontSize: "32px", animation: "spin 1s linear infinite" }}>✨</div>
+                          <div style={{ fontSize: "12px", color: "#aaa", textAlign: "center", lineHeight: 1.4 }}>
+                            AI is painting<br />your photo…<br />
+                            <span style={{ fontSize: "10px", opacity: 0.7 }}>(10–20 seconds)</span>
+                          </div>
+                        </div>
+                      ) : styledPreview ? (
+                        <img
+                          src={styledPreview}
+                          alt="Styled"
+                          style={{
+                            maxWidth: "200px",
+                            maxHeight: "200px",
+                            borderRadius: "10px",
+                            border: "3px solid #2AADA8",
+                            display: "block",
+                            boxShadow: "0 0 20px rgba(42,173,168,0.4)",
+                          }}
+                        />
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              ) : activeTab === "crop" ? (
                 <ReactCrop
                   crop={crop}
                   onChange={(c) => setCrop(c)}
@@ -317,7 +412,7 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
 
             {/* Controls sidebar */}
             <div style={{
-              width: "220px",
+              width: "240px",
               flexShrink: 0,
               padding: "16px",
               display: "flex",
@@ -352,9 +447,7 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                     <button
                       onClick={() => {
                         const img = cropImgRef.current;
-                        if (img) {
-                          setCrop(centerCardCrop(img.width, img.height));
-                        }
+                        if (img) setCrop(centerCardCrop(img.width, img.height));
                         setCompletedCrop(undefined);
                       }}
                       style={{ ...btnStyle, marginTop: "8px", width: "100%" }}
@@ -372,7 +465,6 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                       <Label style={{ fontWeight: 700, color: "#4a3c2e", fontSize: "12px" }}>Adjustments</Label>
                       <button onClick={resetAdj} style={{ ...btnStyle, fontSize: "11px", padding: "3px 8px" }}>Reset</button>
                     </div>
-
                     {([
                       { key: "brightness" as const, label: "☀️ Brightness", min: 50, max: 200 },
                       { key: "contrast" as const, label: "◑ Contrast", min: 50, max: 200 },
@@ -393,7 +485,6 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                       </div>
                     ))}
                   </div>
-
                   <button
                     onClick={autoAdjust}
                     style={{
@@ -408,6 +499,67 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                     ✨ Auto-Adjust
                   </button>
                 </>
+              )}
+
+              {activeTab === "style" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  <div>
+                    <Label style={{ fontWeight: 700, color: "#4a3c2e", fontSize: "12px", marginBottom: "4px", display: "block" }}>
+                      ✨ AI Art Styles
+                    </Label>
+                    <p style={{ fontSize: "11px", color: "#8a7a6a", margin: "0 0 10px", lineHeight: 1.5 }}>
+                      Transform your photo into a fun art style using AI. Takes 10–20 seconds.
+                    </p>
+                  </div>
+                  {STYLES.map((style) => (
+                    <button
+                      key={style.id}
+                      onClick={() => handleGenerateStyle(style.id)}
+                      disabled={!!generatingStyle}
+                      style={{
+                        background: selectedStyle === style.id ? style.gradient : "rgba(255,255,255,0.8)",
+                        border: selectedStyle === style.id ? "2px solid transparent" : "2px solid rgba(42,173,168,0.2)",
+                        borderRadius: "12px",
+                        padding: "10px 12px",
+                        cursor: generatingStyle ? "wait" : "pointer",
+                        textAlign: "left",
+                        opacity: generatingStyle && generatingStyle !== style.id ? 0.5 : 1,
+                        transition: "all 0.2s",
+                        position: "relative",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "3px" }}>
+                        <span style={{ fontSize: "18px" }}>{style.emoji}</span>
+                        <span style={{
+                          fontFamily: "'Baloo 2', cursive",
+                          fontWeight: 700,
+                          fontSize: "13px",
+                          color: selectedStyle === style.id ? style.textColor : "#2AADA8",
+                        }}>
+                          {style.label}
+                          {generatingStyle === style.id && " ✨"}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: "11px", color: selectedStyle === style.id ? style.textColor : "#8a7a6a", lineHeight: 1.4, opacity: 0.85 }}>
+                        {style.desc}
+                      </div>
+                    </button>
+                  ))}
+                  {styledPreview && (
+                    <div style={{
+                      background: "rgba(42,173,168,0.1)",
+                      borderRadius: "10px",
+                      padding: "8px 10px",
+                      fontSize: "11px",
+                      color: "#2AADA8",
+                      fontWeight: 700,
+                      textAlign: "center",
+                      border: "1px solid rgba(42,173,168,0.3)",
+                    }}>
+                      ✅ Style ready! Click "Apply" to use it on your card.
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -427,6 +579,7 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
             </Button>
             <Button
               onClick={applyEdits}
+              disabled={activeTab === "style" && !styledPreview}
               style={{
                 background: "linear-gradient(135deg, #2AADA8, #1d8a86)",
                 color: "#fff",
@@ -435,25 +588,34 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                 fontWeight: 700,
                 border: "none",
                 boxShadow: "0 4px 12px rgba(42,173,168,0.3)",
+                opacity: activeTab === "style" && !styledPreview ? 0.5 : 1,
               }}
             >
-              ✅ Apply & Use Photo
+              {activeTab === "style" && styledPreview ? "✅ Use Styled Photo" : "✅ Apply & Use Photo"}
             </Button>
           </div>
         </div>
       </div>
+
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </>
   );
 }
 
 const btnStyle: React.CSSProperties = {
   background: "rgba(42,173,168,0.1)",
-  border: "1.5px solid rgba(42,173,168,0.3)",
+  border: "1.5px solid rgba(42,173,168,0.25)",
   borderRadius: "8px",
-  color: "#2AADA8",
   padding: "5px 12px",
   cursor: "pointer",
-  fontSize: "12px",
   fontFamily: "'Baloo 2', cursive",
-  fontWeight: 600,
+  fontWeight: 700,
+  fontSize: "12px",
+  color: "#2AADA8",
+  transition: "background 0.15s",
 };

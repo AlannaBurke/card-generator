@@ -10,8 +10,8 @@ import PrintSheet from "./pages/PrintSheet";
 // Vite injects BASE_URL as "/" locally and "/card-generator/" on GitHub Pages.
 // Strip the trailing slash so Wouter's base prop works correctly.
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "") || "";
-
 function AppRoutes() {
+  // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
       <Route path={"/"} component={Home} />
