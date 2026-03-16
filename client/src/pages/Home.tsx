@@ -36,7 +36,7 @@ const ADOPTION_STATUS_OPTIONS = [
   { value: "none", label: "— None —" },
   { value: "available", label: "💚 Available for Adoption" },
   { value: "foster", label: "🏠 In Foster Care" },
-  { value: "resident", label: "🌟 Sanctuary Resident" },
+  { value: "sanctuary", label: "🌟 Sanctuary Resident" },
 ];
 
 const DEMO_PHOTO_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/demo-rabbit-biscuit-eA5imemhvgwxmWPSVtkUXb.webp";
