@@ -2,30 +2,21 @@
  * PhotoEditor — Modal photo editing component
  * Design: Cottagecore Pokédex — matches HALT brand
  *
- * CROP IMPLEMENTATION — WHY PREVIOUS VERSIONS WERE WRONG:
+ * CROP IMPLEMENTATION:
+ *   - react-image-crop reports crop coordinates in the DISPLAYED image's pixel space.
+ *   - To convert to natural pixels: scaleX = img.naturalWidth / img.getBoundingClientRect().width
+ *   - getBoundingClientRect() gives the true rendered size (correct even inside flex containers).
  *
- * react-image-crop reports crop coordinates in the DISPLAYED image's pixel space
- * (i.e., the pixels on screen, not the natural/intrinsic pixels of the image file).
- * To convert to natural pixels you must use:
+ * CROPPED PREVIEW:
+ *   - Whenever the crop or rotation changes, we compute a croppedPreviewSrc (data URL)
+ *     so the Adjust and AI Style tabs always show the cropped version, not the full image.
  *
- *   scaleX = img.naturalWidth  / img.getBoundingClientRect().width
- *   scaleY = img.naturalHeight / img.getBoundingClientRect().height
- *
- * Using img.clientWidth / img.clientHeight is WRONG when the image is inside a
- * flex/scroll container that may add padding or when the ReactCrop wrapper has
- * its own size constraints. getBoundingClientRect() gives the true rendered size.
- *
- * ROTATION PIPELINE:
- *   1. User uploads → originalSrc (data URL)
- *   2. User rotates → rotatedSrc = canvas.toDataURL() of rotated image
- *      (the crop UI always operates on the already-rotated image, so coordinates
- *       are always in the correct post-rotation space)
- *   3. ReactCrop operates on rotatedSrc → completedCrop in display pixel space
- *   4. Apply: scale completedCrop to natural pixels using getBoundingClientRect()
- *   5. Draw rotatedSrc onto output canvas, crop, apply filters → call onApply()
+ * STYLE CACHE:
+ *   - Generated style images are stored in styleCache: Record<styleId, dataUrl>
+ *   - Clicking a previously-generated style shows the cached result instantly.
  */
 
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import ReactCrop, { type Crop, type PixelCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { Button } from "@/components/ui/button";
@@ -52,18 +43,38 @@ const DEFAULT_ADJ: Adjustments = { brightness: 100, contrast: 100, saturation: 1
 // Aspect ratio = 520/320 = 1.625 (13:8 landscape)
 const CARD_PHOTO_ASPECT = 520 / 320; // 1.625
 
-/** Default crop: centered, locked to the card photo aspect ratio */
+/** Default crop: centered, locked to the card photo aspect ratio (percentage units) */
 function centerCardCrop(displayW: number, displayH: number): Crop {
-  const widthPct = Math.min(90, 90);
-  const heightPct = Math.min(100, widthPct * displayW / (CARD_PHOTO_ASPECT * displayH) * 100);
-  const finalWidth = Math.min(widthPct, 100);
-  const finalHeight = Math.min(heightPct, 100);
+  // Fit the crop inside the image while maintaining CARD_PHOTO_ASPECT
+  // Try 90% width first; if the resulting height exceeds 90%, reduce width
+  let w = 90;
+  let h = (w / 100) * displayW / CARD_PHOTO_ASPECT / displayH * 100;
+  if (h > 90) {
+    h = 90;
+    w = (h / 100) * displayH * CARD_PHOTO_ASPECT / displayW * 100;
+  }
+  w = Math.min(w, 100);
+  h = Math.min(h, 100);
   return {
     unit: "%",
-    x: (100 - finalWidth) / 2,
-    y: (100 - finalHeight) / 2,
-    width: finalWidth,
-    height: finalHeight,
+    x: (100 - w) / 2,
+    y: (100 - h) / 2,
+    width: w,
+    height: h,
+  };
+}
+
+/** Convert a percentage crop + image element into a PixelCrop */
+function percentToPixelCrop(crop: Crop, img: HTMLImageElement): PixelCrop {
+  const rect = img.getBoundingClientRect();
+  const dw = rect.width;
+  const dh = rect.height;
+  return {
+    unit: "px",
+    x: (crop.x / 100) * dw,
+    y: (crop.y / 100) * dh,
+    width: (crop.width / 100) * dw,
+    height: (crop.height / 100) * dh,
   };
 }
 
@@ -85,6 +96,30 @@ function rotateToDataUrl(img: HTMLImageElement, degrees: number): string {
   ctx.rotate(rad);
   ctx.drawImage(img, -w / 2, -h / 2, w, h);
   return canvas.toDataURL("image/jpeg", 0.95);
+}
+
+/** Render a cropped data URL from an image element + pixel crop (no filters) */
+function computeCroppedDataUrl(img: HTMLImageElement, pixelCrop: PixelCrop): string {
+  const rect = img.getBoundingClientRect();
+  const scaleX = img.naturalWidth / rect.width;
+  const scaleY = img.naturalHeight / rect.height;
+
+  const cropX = Math.max(0, Math.round(pixelCrop.x * scaleX));
+  const cropY = Math.max(0, Math.round(pixelCrop.y * scaleY));
+  const cropW = Math.max(1, Math.min(Math.round(pixelCrop.width * scaleX), img.naturalWidth - cropX));
+  const cropH = Math.max(1, Math.min(Math.round(pixelCrop.height * scaleY), img.naturalHeight - cropY));
+
+  const maxDim = 600; // preview size — not the final output
+  const scale = Math.min(1, maxDim / Math.max(cropW, cropH));
+  const outW = Math.round(cropW * scale);
+  const outH = Math.round(cropH * scale);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = outW;
+  canvas.height = outH;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, outW, outH);
+  return canvas.toDataURL("image/jpeg", 0.92);
 }
 
 const STYLES = [
@@ -124,18 +159,40 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
   const [activeTab, setActiveTab] = useState<"crop" | "adjust" | "style">("crop");
   const cropImgRef = useRef<HTMLImageElement>(null);
 
-  // AI style state
-  const [styledPreview, setStyledPreview] = useState<string | null>(null);
+  // Cropped preview for Adjust and Style tabs
+  const [croppedPreviewSrc, setCroppedPreviewSrc] = useState<string | null>(null);
+
+  // AI style state — cache maps styleId → generated data URL
+  const [styleCache, setStyleCache] = useState<Record<string, string>>({});
   const [generatingStyle, setGeneratingStyle] = useState<string | null>(null);
-  const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
+  const [activeStyle, setActiveStyle] = useState<string | null>(null);
 
   const styleTransfer = trpc.photo.styleTransfer.useMutation();
 
+  /** Called when the crop image loads — set default crop AND completedCrop immediately */
   const onCropImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-    const { width, height } = e.currentTarget;
-    setCrop(centerCardCrop(width, height));
-    setCompletedCrop(undefined);
+    const img = e.currentTarget;
+    const { width, height } = img;
+    const defaultCrop = centerCardCrop(width, height);
+    setCrop(defaultCrop);
+    // Convert to pixel crop immediately so completedCrop is set from the start
+    const pixelCrop = percentToPixelCrop(defaultCrop, img);
+    setCompletedCrop(pixelCrop);
+    // Compute the initial cropped preview
+    const preview = computeCroppedDataUrl(img, pixelCrop);
+    setCroppedPreviewSrc(preview);
   }, []);
+
+  /** Recompute the cropped preview whenever completedCrop changes */
+  useEffect(() => {
+    const img = cropImgRef.current;
+    if (!img || !completedCrop || completedCrop.width < 4 || completedCrop.height < 4) return;
+    const preview = computeCroppedDataUrl(img, completedCrop);
+    setCroppedPreviewSrc(preview);
+    // When crop changes, invalidate the style cache (the source changed)
+    setStyleCache({});
+    setActiveStyle(null);
+  }, [completedCrop]);
 
   const rotate = useCallback((dir: "cw" | "ccw") => {
     const origImg = originalImgRef.current;
@@ -146,15 +203,18 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
     setRotatedSrc(newSrc);
     setCrop(undefined);
     setCompletedCrop(undefined);
+    setCroppedPreviewSrc(null);
+    setStyleCache({});
+    setActiveStyle(null);
   }, [rotation]);
 
   const autoAdjust = () => setAdj({ brightness: 108, contrast: 112, saturation: 112 });
   const resetAdj = () => setAdj(DEFAULT_ADJ);
 
   const applyEdits = useCallback(() => {
-    // If user has a styled preview selected, use that directly
-    if (activeTab === "style" && styledPreview) {
-      onApply(styledPreview);
+    // If user has a styled image selected, use that directly
+    if (activeTab === "style" && activeStyle && styleCache[activeStyle]) {
+      onApply(styleCache[activeStyle]);
       return;
     }
 
@@ -200,15 +260,23 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
     const result = output.toDataURL("image/jpeg", 0.92);
     if (!result || result === "data:,") return;
     onApply(result);
-  }, [completedCrop, adj, onApply, activeTab, styledPreview]);
+  }, [completedCrop, adj, onApply, activeTab, activeStyle, styleCache]);
 
   const handleGenerateStyle = async (styleId: "pokemon" | "kawaii" | "comic") => {
+    // If we already have a cached result for this style, just show it
+    if (styleCache[styleId]) {
+      setActiveStyle(styleId);
+      return;
+    }
+
+    // Use the cropped preview as the source for style generation (so the AI sees the cropped image)
+    const sourceForStyle = croppedPreviewSrc || rotatedSrc;
+
     setGeneratingStyle(styleId);
-    setStyledPreview(null);
-    setSelectedStyle(null);
+    setActiveStyle(null);
     try {
       const result = await styleTransfer.mutateAsync({
-        imageDataUrl: rotatedSrc,
+        imageDataUrl: sourceForStyle,
         style: styleId,
       });
       if (result.url) {
@@ -218,8 +286,8 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
         const reader = new FileReader();
         reader.onload = (ev) => {
           const dataUrl = ev.target?.result as string;
-          setStyledPreview(dataUrl);
-          setSelectedStyle(styleId);
+          setStyleCache((prev) => ({ ...prev, [styleId]: dataUrl }));
+          setActiveStyle(styleId);
         };
         reader.readAsDataURL(blob);
       }
@@ -232,6 +300,13 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
   };
 
   const filterStyle = `brightness(${adj.brightness}%) contrast(${adj.contrast}%) saturate(${adj.saturation}%)`;
+
+  // What to show in the Adjust tab: cropped preview if available, otherwise full rotated
+  const adjustPreviewSrc = croppedPreviewSrc || rotatedSrc;
+  // What to show as "original" in the Style tab
+  const styleOriginalSrc = croppedPreviewSrc || rotatedSrc;
+  // The currently active styled image
+  const activeStyledImage = activeStyle ? styleCache[activeStyle] : null;
 
   return (
     <>
@@ -323,20 +398,22 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
             }}>
               {activeTab === "style" ? (
                 <div style={{ display: "flex", gap: "16px", alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
-                  {/* Original */}
+                  {/* Cropped original */}
                   <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: "11px", color: "#aaa", marginBottom: "6px", fontWeight: 700 }}>ORIGINAL</div>
+                    <div style={{ fontSize: "11px", color: "#aaa", marginBottom: "6px", fontWeight: 700 }}>CROPPED ORIGINAL</div>
                     <img
-                      src={rotatedSrc}
+                      src={styleOriginalSrc}
                       alt="Original"
                       style={{ maxWidth: "200px", maxHeight: "200px", borderRadius: "10px", border: "2px solid rgba(255,255,255,0.2)", display: "block" }}
                     />
                   </div>
                   {/* Styled preview */}
-                  {(generatingStyle || styledPreview) && (
+                  {(generatingStyle || activeStyledImage) && (
                     <div style={{ textAlign: "center" }}>
                       <div style={{ fontSize: "11px", color: "#aaa", marginBottom: "6px", fontWeight: 700 }}>
-                        {generatingStyle ? "GENERATING..." : `${STYLES.find(s => s.id === selectedStyle)?.label.toUpperCase()} STYLE`}
+                        {generatingStyle
+                          ? `GENERATING ${STYLES.find(s => s.id === generatingStyle)?.label.toUpperCase()}...`
+                          : `${STYLES.find(s => s.id === activeStyle)?.label.toUpperCase()} STYLE`}
                       </div>
                       {generatingStyle ? (
                         <div style={{
@@ -357,9 +434,9 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                             <span style={{ fontSize: "10px", opacity: 0.7 }}>(10–20 seconds)</span>
                           </div>
                         </div>
-                      ) : styledPreview ? (
+                      ) : activeStyledImage ? (
                         <img
-                          src={styledPreview}
+                          src={activeStyledImage}
                           alt="Styled"
                           style={{
                             maxWidth: "200px",
@@ -396,8 +473,9 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                   />
                 </ReactCrop>
               ) : (
+                /* Adjust tab — show the cropped preview with live filter applied */
                 <img
-                  src={rotatedSrc}
+                  src={adjustPreviewSrc}
                   alt="Adjust preview"
                   style={{
                     maxWidth: "100%",
@@ -447,8 +525,12 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                     <button
                       onClick={() => {
                         const img = cropImgRef.current;
-                        if (img) setCrop(centerCardCrop(img.width, img.height));
-                        setCompletedCrop(undefined);
+                        if (img) {
+                          const defaultCrop = centerCardCrop(img.width, img.height);
+                          setCrop(defaultCrop);
+                          const pixelCrop = percentToPixelCrop(defaultCrop, img);
+                          setCompletedCrop(pixelCrop);
+                        }
                       }}
                       style={{ ...btnStyle, marginTop: "8px", width: "100%" }}
                     >
@@ -498,6 +580,9 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                   >
                     ✨ Auto-Adjust
                   </button>
+                  <p style={{ fontSize: "11px", color: "#8a7a6a", margin: 0, lineHeight: 1.5 }}>
+                    Adjustments are applied on top of your crop. Go back to Crop & Rotate to change the framing.
+                  </p>
                 </>
               )}
 
@@ -508,44 +593,50 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                       ✨ AI Art Styles
                     </Label>
                     <p style={{ fontSize: "11px", color: "#8a7a6a", margin: "0 0 10px", lineHeight: 1.5 }}>
-                      Transform your photo into a fun art style using AI. Takes 10–20 seconds.
+                      Transform your cropped photo using AI. Previously generated styles are cached — click again to switch back instantly.
                     </p>
                   </div>
-                  {STYLES.map((style) => (
-                    <button
-                      key={style.id}
-                      onClick={() => handleGenerateStyle(style.id)}
-                      disabled={!!generatingStyle}
-                      style={{
-                        background: selectedStyle === style.id ? style.gradient : "rgba(255,255,255,0.8)",
-                        border: selectedStyle === style.id ? "2px solid transparent" : "2px solid rgba(42,173,168,0.2)",
-                        borderRadius: "12px",
-                        padding: "10px 12px",
-                        cursor: generatingStyle ? "wait" : "pointer",
-                        textAlign: "left",
-                        opacity: generatingStyle && generatingStyle !== style.id ? 0.5 : 1,
-                        transition: "all 0.2s",
-                        position: "relative",
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "3px" }}>
-                        <span style={{ fontSize: "18px" }}>{style.emoji}</span>
-                        <span style={{
-                          fontFamily: "'Baloo 2', cursive",
-                          fontWeight: 700,
-                          fontSize: "13px",
-                          color: selectedStyle === style.id ? style.textColor : "#2AADA8",
-                        }}>
-                          {style.label}
-                          {generatingStyle === style.id && " ✨"}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: "11px", color: selectedStyle === style.id ? style.textColor : "#8a7a6a", lineHeight: 1.4, opacity: 0.85 }}>
-                        {style.desc}
-                      </div>
-                    </button>
-                  ))}
-                  {styledPreview && (
+                  {STYLES.map((style) => {
+                    const isCached = !!styleCache[style.id];
+                    const isActive = activeStyle === style.id;
+                    const isGenerating = generatingStyle === style.id;
+                    return (
+                      <button
+                        key={style.id}
+                        onClick={() => handleGenerateStyle(style.id)}
+                        disabled={!!generatingStyle}
+                        style={{
+                          background: isActive ? style.gradient : "rgba(255,255,255,0.8)",
+                          border: isActive ? "2px solid transparent" : "2px solid rgba(42,173,168,0.2)",
+                          borderRadius: "12px",
+                          padding: "10px 12px",
+                          cursor: generatingStyle ? "wait" : "pointer",
+                          textAlign: "left",
+                          opacity: generatingStyle && !isGenerating ? 0.5 : 1,
+                          transition: "all 0.2s",
+                          position: "relative",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "3px" }}>
+                          <span style={{ fontSize: "18px" }}>{style.emoji}</span>
+                          <span style={{
+                            fontFamily: "'Baloo 2', cursive",
+                            fontWeight: 700,
+                            fontSize: "13px",
+                            color: isActive ? style.textColor : "#2AADA8",
+                          }}>
+                            {style.label}
+                            {isGenerating && " ✨"}
+                            {isCached && !isGenerating && !isActive && " ✓"}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: "11px", color: isActive ? style.textColor : "#8a7a6a", lineHeight: 1.4, opacity: 0.85 }}>
+                          {isCached && !isActive ? "Cached — click to view" : style.desc}
+                        </div>
+                      </button>
+                    );
+                  })}
+                  {activeStyledImage && (
                     <div style={{
                       background: "rgba(42,173,168,0.1)",
                       borderRadius: "10px",
@@ -579,7 +670,7 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
             </Button>
             <Button
               onClick={applyEdits}
-              disabled={activeTab === "style" && !styledPreview}
+              disabled={activeTab === "style" && !activeStyledImage}
               style={{
                 background: "linear-gradient(135deg, #2AADA8, #1d8a86)",
                 color: "#fff",
@@ -588,10 +679,10 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                 fontWeight: 700,
                 border: "none",
                 boxShadow: "0 4px 12px rgba(42,173,168,0.3)",
-                opacity: activeTab === "style" && !styledPreview ? 0.5 : 1,
+                opacity: activeTab === "style" && !activeStyledImage ? 0.5 : 1,
               }}
             >
-              {activeTab === "style" && styledPreview ? "✅ Use Styled Photo" : "✅ Apply & Use Photo"}
+              {activeTab === "style" && activeStyledImage ? "✅ Use Styled Photo" : "✅ Apply & Use Photo"}
             </Button>
           </div>
         </div>
