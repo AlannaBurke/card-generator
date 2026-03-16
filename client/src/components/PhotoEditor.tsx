@@ -127,7 +127,7 @@ const STYLES = [
     id: "pokemon" as const,
     label: "Pokémon",
     emoji: "⚡",
-    desc: "Bold outlines, vibrant colors, chibi Pokémon card style",
+    desc: "Bold outlines, vibrant colors, chibi Pokémon card style with nature background",
     gradient: "linear-gradient(135deg, #FFCB05, #3D7DCA)",
     textColor: "#1a3a6a",
   },
@@ -135,7 +135,7 @@ const STYLES = [
     id: "kawaii" as const,
     label: "Kawaii",
     emoji: "🌸",
-    desc: "Soft pastels, big sparkly eyes, Japanese sticker aesthetic",
+    desc: "Soft pastels, big sparkly eyes, dreamy pastel background",
     gradient: "linear-gradient(135deg, #FFB7D5, #C8A4E8)",
     textColor: "#6a1a5a",
   },
@@ -146,6 +146,14 @@ const STYLES = [
     desc: "Bold ink outlines, halftone dots, retro pop-art energy",
     gradient: "linear-gradient(135deg, #FF6B35, #F7C59F)",
     textColor: "#5a1a00",
+  },
+  {
+    id: "watercolor" as const,
+    label: "Watercolor",
+    emoji: "🎨",
+    desc: "Soft painted washes, organic edges, nature field guide aesthetic",
+    gradient: "linear-gradient(135deg, #7EC8C8, #B5D5A0)",
+    textColor: "#1a3a2a",
   },
 ];
 
@@ -168,6 +176,7 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
   const [activeStyle, setActiveStyle] = useState<string | null>(null);
 
   const styleTransfer = trpc.photo.styleTransfer.useMutation();
+  type StyleId = "pokemon" | "kawaii" | "comic" | "watercolor";
 
   /** Called when the crop image loads — set default crop AND completedCrop immediately */
   const onCropImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -262,7 +271,7 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
     onApply(result);
   }, [completedCrop, adj, onApply, activeTab, activeStyle, styleCache]);
 
-  const handleGenerateStyle = async (styleId: "pokemon" | "kawaii" | "comic") => {
+  const handleGenerateStyle = async (styleId: StyleId) => {
     // If we already have a cached result for this style, just show it
     if (styleCache[styleId]) {
       setActiveStyle(styleId);
@@ -404,7 +413,7 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                     <img
                       src={styleOriginalSrc}
                       alt="Original"
-                      style={{ maxWidth: "200px", maxHeight: "200px", borderRadius: "10px", border: "2px solid rgba(255,255,255,0.2)", display: "block" }}
+                      style={{ maxWidth: "280px", maxHeight: "280px", borderRadius: "10px", border: "2px solid rgba(255,255,255,0.2)", display: "block" }}
                     />
                   </div>
                   {/* Styled preview */}
@@ -417,8 +426,8 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                       </div>
                       {generatingStyle ? (
                         <div style={{
-                          width: "200px",
-                          height: "200px",
+                          width: "280px",
+                          height: "280px",
                           borderRadius: "10px",
                           background: "rgba(255,255,255,0.08)",
                           display: "flex",
@@ -439,8 +448,8 @@ export default function PhotoEditor({ src, onApply, onClose }: PhotoEditorProps)
                           src={activeStyledImage}
                           alt="Styled"
                           style={{
-                            maxWidth: "200px",
-                            maxHeight: "200px",
+                            maxWidth: "280px",
+                            maxHeight: "280px",
                             borderRadius: "10px",
                             border: "3px solid #2AADA8",
                             display: "block",

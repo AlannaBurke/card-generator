@@ -22,9 +22,29 @@ describe("photo.styleTransfer", () => {
     await expect(
       caller.photo.styleTransfer({
         imageDataUrl: "data:image/jpeg;base64,/9j/abc",
-        style: "watercolor" as "pokemon",
+        style: "oil-painting" as "pokemon",
       })
     ).rejects.toThrow();
+  });
+
+  it("calls generateImage with correct prompt for watercolor style", async () => {
+    const { generateImage } = await import("./_core/imageGeneration");
+    const ctx = createPublicContext();
+    const caller = appRouter.createCaller(ctx);
+
+    const fakeDataUrl = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k=";
+
+    const result = await caller.photo.styleTransfer({
+      imageDataUrl: fakeDataUrl,
+      style: "watercolor",
+    });
+
+    expect(generateImage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringContaining("watercolor"),
+      })
+    );
+    expect(result.url).toBe("https://cdn.example.com/generated/test.png");
   });
 
   it("rejects empty imageDataUrl", async () => {
