@@ -1,17 +1,20 @@
 # 🐾 HALT Animal Card Generator
 
-A web app for [Helping All Little Things](https://helpingalllittlethings.org) team members to generate adorable Pokémon-style trading cards for sanctuary animals. Upload a photo, fill in the details, and download a high-resolution card to share.
+A web app for [Helping All Little Things](https://helpingalllittlethings.org) team members to generate adorable trading cards for rescue animals. Upload a photo, fill in the details, choose an AI art style, and download a high-resolution card to share.
 
 ---
 
 ## Features
 
 - **Photo upload** — click or drag & drop (JPG, PNG, WEBP, up to 10 MB)
-- **Animal details** — name, species, sex, age, weight, personality traits, bio
-- **Friendliness HP slider** — a heart-meter score for the card
+- **Photo editor** — crop (locked to card ratio), rotate, brightness/contrast/saturation, auto-adjust
+- **AI art styles** — transform any photo into Pokémon TCG, Kawaii, Comic Book, or Watercolor art with a single click; results are cached so you can compare styles
+- **Animal details** — name, species, sex, age, weight, personality traits, bio, fun fact
+- **Friendliness HP slider** — a pink heart-meter score for the card
+- **Adoption status badge** — Available, In Foster, or Sanctuary Resident banner
 - **Species color theming** — card header color changes automatically per species
 - **Live card preview** — updates in real time; flip to see the card back
-- **Download as PNG** — exports at 2× resolution, ready to share
+- **Download as PNG** — exports at full resolution using a canvas renderer
 
 ---
 
@@ -19,14 +22,13 @@ A web app for [Helping All Little Things](https://helpingalllittlethings.org) te
 
 | Layer | Technology |
 |---|---|
-| Framework | React 19 + TypeScript |
-| Styling | Tailwind CSS 4 |
-| UI Components | shadcn/ui (Radix UI) |
-| Build Tool | Vite 7 |
-| Card Export | html2canvas |
+| Frontend | React 19 + TypeScript + Vite 7 |
+| Styling | Tailwind CSS 4 + shadcn/ui |
+| Backend | Express 4 + tRPC 11 |
+| Database | Drizzle ORM + MySQL/TiDB |
+| AI Image Generation | Manus Forge Image API |
+| Card Export | Canvas API |
 | Package Manager | pnpm |
-
-This is a **100% static frontend** app — no server, no database, no API keys required.
 
 ---
 
@@ -35,7 +37,8 @@ This is a **100% static frontend** app — no server, no database, no API keys r
 ### Prerequisites
 
 - [Node.js](https://nodejs.org) v18 or higher
-- [pnpm](https://pnpm.io) v8 or higher (`npm install -g pnpm`)
+- [pnpm](https://pnpm.io) (`npm install -g pnpm`)
+- A MySQL-compatible database (local or cloud)
 
 ### Setup
 
@@ -43,7 +46,13 @@ This is a **100% static frontend** app — no server, no database, no API keys r
 git clone https://github.com/AlannaBurke/card-generator.git
 cd card-generator
 pnpm install
-pnpm dev
+```
+
+Copy `.env.example` to `.env` and fill in the required values (see [Environment Variables](#environment-variables) below), then run:
+
+```bash
+pnpm db:push   # create database tables
+pnpm dev       # start the dev server
 ```
 
 The app will be available at `http://localhost:3000`.
@@ -54,106 +63,76 @@ The app will be available at `http://localhost:3000`.
 pnpm build
 ```
 
-Output is written to `dist/public/`. This folder contains everything needed — just upload it to any static host.
+Output is written to `dist/public/` (frontend) and `dist/index.js` (backend server).
+
+---
+
+## Environment Variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `DATABASE_URL` | Yes | MySQL connection string, e.g. `mysql://user:pass@host:3306/dbname` |
+| `JWT_SECRET` | Yes | Long random string for signing session cookies |
+| `BUILT_IN_FORGE_API_KEY` | Yes | API key for the Manus AI image generation service |
+| `BUILT_IN_FORGE_API_URL` | Yes | Base URL for the Manus AI image generation service |
+| `VITE_APP_ID` | Optional | Manus OAuth app ID (leave blank to disable login) |
+| `OAUTH_SERVER_URL` | Optional | Manus OAuth backend URL |
+| `VITE_OAUTH_PORTAL_URL` | Optional | Manus login portal URL |
+
+> **Note:** When deploying on Manus, all of the above are injected automatically — no manual configuration needed.
 
 ---
 
 ## Deployment
 
-### Option 1 — Netlify (Recommended, free tier available)
+See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for the full step-by-step guide. A summary of available options:
 
-1. Go to [app.netlify.com](https://app.netlify.com) → **Add new site → Import an existing project**
-2. Connect your GitHub account and select `AlannaBurke/card-generator`
-3. Netlify will auto-detect the settings from `netlify.toml`:
-   - **Build command:** `pnpm install && pnpm build`
-   - **Publish directory:** `dist/public`
-4. Click **Deploy site** — done!
+| Option | AI Styles | Free Tier | Difficulty |
+|---|---|---|---|
+| **Manus** (recommended) | ✅ | ✅ | One click |
+| **Railway** | ✅ | ✅ (500 hrs/mo) | Low |
+| **Render** | ✅ | ✅ (spins down on idle) | Low |
+| **Fly.io** | ✅ | ✅ | Medium |
+| **GitHub Pages** | ❌ (static only) | ✅ | Low |
+| **VPS / cPanel** | ✅ | Varies | Medium |
 
-The `netlify.toml` file in this repo handles SPA routing, security headers, and asset caching automatically.
+### Quickest path — Manus
 
-### Option 2 — Vercel (free tier available)
+The app is already configured for one-click deployment on Manus. After saving a checkpoint, click the **Publish** button in the Management UI. The live URL is:
 
-1. Go to [vercel.com](https://vercel.com) → **Add New Project**
-2. Import `AlannaBurke/card-generator` from GitHub
-3. Vercel will read `vercel.json` automatically — no manual configuration needed
-4. Click **Deploy**
+> **https://haltcards-ksanxky3.manus.space**
 
-### Option 3 — Cloudflare Pages (free tier available)
+### GitHub Pages (static, no AI features)
 
-1. Go to [dash.cloudflare.com](https://dash.cloudflare.com) → **Pages → Create a project**
-2. Connect GitHub and select the repo
-3. Set:
-   - **Build command:** `pnpm install && pnpm build`
-   - **Build output directory:** `dist/public`
-4. Deploy — the `_redirects` file in `client/public/` handles SPA routing automatically
-
-### Option 4 — GitHub Pages
-
-1. In your repo, go to **Settings → Pages**
-2. Set source to **GitHub Actions**
-3. Create `.github/workflows/deploy.yml`:
-
-```yaml
-name: Deploy to GitHub Pages
-on:
-  push:
-    branches: [main]
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install
-      - run: pnpm build
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist/public
-      - uses: actions/deploy-pages@v4
+```bash
+git pull
+pnpm install
+pnpm gh-deploy
 ```
 
-### Option 5 — cPanel / Shared Hosting (Bluehost, SiteGround, DreamHost, etc.)
+Live at: **https://AlannaBurke.github.io/card-generator/**
 
-1. Run `pnpm build` locally (or in CI)
-2. Upload the contents of `dist/public/` to your `public_html` folder via FTP or the File Manager
-3. The `.htaccess` file in `client/public/` is automatically included in the build and handles SPA routing on Apache servers
-
----
-
-## Analytics (Optional)
-
-The app ships with no analytics by default. To add your own, open `client/index.html` and replace the comment placeholder with your preferred analytics script (Plausible, Fathom, Google Analytics, etc.):
-
-```html
-<!-- Analytics: add your own script here if needed -->
-```
+> Note: `pnpm deploy` is reserved by pnpm — use `pnpm gh-deploy` instead.
 
 ---
 
 ## Customization
 
-All card assets (background texture, card back, hero image) are hosted on a CDN. Their URLs are defined as constants at the top of `client/src/pages/Home.tsx`:
-
-```ts
-const LOGO_URL = "...";
-const CARD_BG_URL = "...";
-const HERO_BG_URL = "...";
-const CARD_BACK_URL = "...";
-```
-
-Replace these with your own hosted images if you want to customize the card design.
+All card assets (background texture, hero image, species icons) are hosted on a CDN. Their URLs are defined as constants in `client/src/components/AnimalCard.tsx` and `client/src/pages/Home.tsx`. Replace them with your own hosted images to customize the card design.
 
 Species color theming is defined in `client/src/components/AnimalCard.tsx` in the `SPECIES_COLORS` object — add new species or adjust colors there.
+
+AI style prompts are defined in `server/routers.ts` in the `STYLE_PROMPTS` object — edit them to tune the style output.
+
+---
+
+## Running Tests
+
+```bash
+pnpm test
+```
+
+Test files live in `server/*.test.ts` and use [Vitest](https://vitest.dev/).
 
 ---
 

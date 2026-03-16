@@ -13,6 +13,8 @@ The card generator has two distinct deployment targets depending on which featur
 | Target | AI Style Transfer | Database | Auth | Complexity |
 |---|---|---|---|---|
 | **Manus (full-stack)** | ✅ Yes | ✅ Yes | ✅ Yes | Low — click Publish |
+| **Railway** | ✅ Yes | ✅ Yes | Optional | Low — connect GitHub |
+| **Render** | ✅ Yes | ✅ Yes | Optional | Low — connect GitHub |
 | **GitHub Pages (static)** | ❌ No | ❌ No | ❌ No | Medium — run one command |
 
 The AI Style Transfer feature (Pokémon, Kawaii, Comic Book) requires a live backend server and **cannot run on GitHub Pages**. If you need that feature, use the Manus deployment.
@@ -106,9 +108,74 @@ The repository includes `client/public/404.html` and a redirect decode script in
 
 ---
 
-## Option 3 — Self-Hosted (VPS / Railway / Render)
+## Option 3 — Railway (Full-Stack, Free Tier Available)
+
+[Railway](https://railway.app) is a modern PaaS that can run the full-stack app with AI features. It has a generous free tier (500 hours/month) and deploys directly from GitHub.
+
+### Steps
+
+**1. Create a Railway account** at [railway.app](https://railway.app) and install the CLI if you prefer terminal-based deploys (`npm install -g @railway/cli`).
+
+**2. Provision a MySQL database.** In your Railway project dashboard, click **+ New** → **Database** → **MySQL**. Railway will create a database and expose a `DATABASE_URL` variable automatically.
+
+**3. Create a new service from GitHub.** Click **+ New** → **GitHub Repo** → select `AlannaBurke/card-generator`. Railway detects the `package.json` and uses `pnpm build` + `pnpm start` automatically.
+
+**4. Set environment variables.** In the service settings, go to **Variables** and add:
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | Auto-populated from the MySQL service (use the `${{MySQL.DATABASE_URL}}` reference) |
+| `JWT_SECRET` | A long random string (e.g. output of `openssl rand -hex 32`) |
+| `BUILT_IN_FORGE_API_KEY` | Your Manus Forge API key |
+| `BUILT_IN_FORGE_API_URL` | Your Manus Forge API URL |
+| `NODE_ENV` | `production` |
+
+**5. Run the database migration.** In the Railway service, open the **Shell** tab and run:
+
+```bash
+pnpm db:push
+```
+
+**6. Deploy.** Railway deploys automatically on every push to `main`. Your app will be live at a `*.railway.app` URL within a few minutes.
+
+### Custom Domain on Railway
+
+In your service settings, go to **Settings** → **Domains** → **Custom Domain**. Add your domain and follow the CNAME instructions. Railway provisions SSL automatically.
+
+---
+
+## Option 4 — Render (Full-Stack, Free Tier Available)
+
+[Render](https://render.com) is another PaaS option with a free tier. Note that free-tier web services on Render **spin down after 15 minutes of inactivity** and take ~30 seconds to wake up on the next request. Upgrade to a paid plan to avoid cold starts.
+
+### Steps
+
+**1. Create a Render account** at [render.com](https://render.com).
+
+**2. Provision a MySQL database.** Click **New** → **PostgreSQL** (Render's managed DB). Note: Render's managed database is PostgreSQL, not MySQL. You will need to update `DATABASE_URL` to a PostgreSQL connection string and change the Drizzle dialect from `mysql2` to `pg` in `drizzle/schema.ts` and `server/db.ts`. Alternatively, use an external MySQL provider such as [PlanetScale](https://planetscale.com) or [Aiven](https://aiven.io) and paste the connection string directly.
+
+**3. Create a Web Service.** Click **New** → **Web Service** → connect your GitHub repo. Set:
+
+| Setting | Value |
+|---|---|
+| **Environment** | Node |
+| **Build Command** | `pnpm install && pnpm build` |
+| **Start Command** | `node dist/index.js` |
+| **Node Version** | 22 |
+
+**4. Set environment variables.** In the **Environment** tab, add the same variables as listed in [Option 3](#option-3--railway-full-stack-free-tier-available) above.
+
+**5. Run the database migration.** Use the Render **Shell** tab (available on paid plans) or run `pnpm db:push` locally with the production `DATABASE_URL` set.
+
+**6. Deploy.** Render deploys automatically on every push to `main`.
+
+---
+
+## Option 5 — Self-Hosted (VPS / cPanel)
 
 This option runs the full-stack app (with AI features) on your own infrastructure.
+
+For a traditional Linux VPS (DigitalOcean, Linode, Hetzner, etc.) or shared hosting with Node.js support.
 
 ### Build
 
