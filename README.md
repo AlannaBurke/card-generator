@@ -2,8 +2,6 @@
 
 A web app for [Helping All Little Things](https://helpingalllittlethings.org) team members to generate adorable Pokémon-style trading cards for sanctuary animals. Upload a photo, fill in the details, and download a high-resolution card to share.
 
-![HALT Logo](https://d2xsxph8kpxj0f.cloudfront.net/310519663404885239/KSAnxKy3iVwgftKj5yQJFJ/logo-square_17e2654f.png)
-
 ---
 
 ## Features
