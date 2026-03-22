@@ -26,7 +26,7 @@ A web app for [Helping All Little Things](https://helpingalllittlethings.org) te
 | Styling | Tailwind CSS 4 + shadcn/ui |
 | Backend | Express 4 + tRPC 11 |
 | Database | Drizzle ORM + MySQL/TiDB |
-| AI Image Generation | Manus Forge Image API |
+| AI Image Generation | OpenAI `gpt-image-1` (or Manus Forge on Manus platform) |
 | Card Export | Canvas API |
 | Package Manager | pnpm |
 
@@ -72,14 +72,13 @@ Output is written to `dist/public/` (frontend) and `dist/index.js` (backend serv
 | Variable | Required | Description |
 |---|---|---|
 | `DATABASE_URL` | Yes | MySQL connection string, e.g. `mysql://user:pass@host:3306/dbname` |
-| `JWT_SECRET` | Yes | Long random string for signing session cookies |
-| `BUILT_IN_FORGE_API_KEY` | Yes | API key for the Manus AI image generation service |
-| `BUILT_IN_FORGE_API_URL` | Yes | Base URL for the Manus AI image generation service |
+| `JWT_SECRET` | Yes | Long random string for signing session cookies — generate with `openssl rand -hex 32` |
+| `OPENAI_API_KEY` | Yes* | OpenAI API key for AI Style Transfer — get one at [platform.openai.com](https://platform.openai.com/api-keys) |
 | `VITE_APP_ID` | Optional | Manus OAuth app ID (leave blank to disable login) |
 | `OAUTH_SERVER_URL` | Optional | Manus OAuth backend URL |
 | `VITE_OAUTH_PORTAL_URL` | Optional | Manus login portal URL |
 
-> **Note:** When deploying on Manus, all of the above are injected automatically — no manual configuration needed.
+> **\* OpenAI API key:** Required for Railway, Render, and VPS deployments. When running on the Manus platform, `BUILT_IN_FORGE_API_KEY` and `BUILT_IN_FORGE_API_URL` are injected automatically and used instead — no `OPENAI_API_KEY` needed on Manus.
 
 ---
 
@@ -92,7 +91,6 @@ See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for the full step-by-step guide. A summ
 | **Manus** (recommended) | ✅ | ✅ | One click |
 | **Railway** | ✅ | ✅ (500 hrs/mo) | Low |
 | **Render** | ✅ | ✅ (spins down on idle) | Low |
-| **Fly.io** | ✅ | ✅ | Medium |
 | **GitHub Pages** | ❌ (static only) | ✅ | Low |
 | **VPS / cPanel** | ✅ | Varies | Medium |
 

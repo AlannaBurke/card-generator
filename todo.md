@@ -6,3 +6,5 @@
 - [x] Update AI style prompts to include styled backgrounds (not plain white)
 - [x] Add Watercolor as a fourth AI style
 - [x] Make style preview images larger in the editor
+- [x] Replace Manus Forge image generation with OpenAI DALL-E (works on Railway/Render/VPS)
+- [x] Update README and DEPLOYMENT.md to document OPENAI_API_KEY requirement

@@ -8,22 +8,39 @@
 
 ## Overview
 
-The card generator has two distinct deployment targets depending on which features you need:
+The card generator supports two deployment modes depending on which features you need:
 
 | Target | AI Style Transfer | Database | Auth | Complexity |
 |---|---|---|---|---|
-| **Manus (full-stack)** | ✅ Yes | ✅ Yes | ✅ Yes | Low — click Publish |
-| **Railway** | ✅ Yes | ✅ Yes | Optional | Low — connect GitHub |
-| **Render** | ✅ Yes | ✅ Yes | Optional | Low — connect GitHub |
-| **GitHub Pages (static)** | ❌ No | ❌ No | ❌ No | Medium — run one command |
+| **Manus (full-stack)** | ✅ Yes (auto) | ✅ Yes | ✅ Yes | Low — click Publish |
+| **Railway** | ✅ Yes (needs `OPENAI_API_KEY`) | ✅ Yes | Optional | Low — connect GitHub |
+| **Render** | ✅ Yes (needs `OPENAI_API_KEY`) | ✅ Yes | Optional | Low — connect GitHub |
+| **VPS / Self-hosted** | ✅ Yes (needs `OPENAI_API_KEY`) | ✅ Yes | Optional | Medium |
+| **GitHub Pages (static)** | ❌ No | ❌ No | ❌ No | Medium — one command |
 
-The AI Style Transfer feature (Pokémon, Kawaii, Comic Book) requires a live backend server and **cannot run on GitHub Pages**. If you need that feature, use the Manus deployment.
+The AI Style Transfer feature (Pokémon, Kawaii, Comic Book, Watercolor) requires a live backend server and **cannot run on GitHub Pages**. For all non-Manus deployments, you need an **OpenAI API key** — the app uses `gpt-image-1` for image editing.
+
+---
+
+## AI Image Generation — Backend Selection
+
+The app automatically selects the image generation backend based on which credentials are present:
+
+1. **OpenAI** (`OPENAI_API_KEY`) — used first if set. Works on any platform. Uses `gpt-image-1` with image editing for style transfer.
+2. **Manus Forge** (`BUILT_IN_FORGE_API_KEY` + `BUILT_IN_FORGE_API_URL`) — used automatically when running inside the Manus platform. No setup required.
+
+If neither is configured, the AI Style tab will return an error. For Railway, Render, and VPS deployments, set `OPENAI_API_KEY`.
+
+**Getting an OpenAI API key:**
+1. Go to [platform.openai.com](https://platform.openai.com) and create an account
+2. Navigate to **API Keys** → **Create new secret key**
+3. Copy the key (it starts with `sk-...`) and add it as `OPENAI_API_KEY` in your deployment environment
 
 ---
 
 ## Option 1 — Manus Hosted Deployment (Recommended)
 
-This is the simplest path. The Manus platform manages the server, database, environment variables, and CDN automatically.
+This is the simplest path. The Manus platform manages the server, database, environment variables, CDN, and AI image generation automatically — no OpenAI key required.
 
 ### Prerequisites
 
@@ -49,18 +66,18 @@ To serve the app from a custom domain such as `cards.helpingalllittlethings.org`
 
 ### Environment Variables
 
-All required secrets are injected automatically by the Manus platform. The following variables are pre-configured and do not require manual setup:
+All required secrets are injected automatically by the Manus platform. No manual setup is required:
 
 | Variable | Purpose |
 |---|---|
 | `DATABASE_URL` | MySQL/TiDB connection string |
 | `JWT_SECRET` | Session cookie signing key |
-| `BUILT_IN_FORGE_API_KEY` | Backend API key for AI image generation |
-| `BUILT_IN_FORGE_API_URL` | AI image generation endpoint |
+| `BUILT_IN_FORGE_API_KEY` | Backend API key for AI image generation (Manus internal) |
+| `BUILT_IN_FORGE_API_URL` | AI image generation endpoint (Manus internal) |
 | `VITE_APP_ID` | Manus OAuth application ID |
 | `OAUTH_SERVER_URL` | Manus OAuth backend |
 
-If you ever need to add a custom variable (e.g., a third-party API key), use the **Settings → Secrets** panel in the Management UI.
+If you want to use OpenAI instead of Forge on the Manus platform, add `OPENAI_API_KEY` via **Settings → Secrets** and it will take priority automatically.
 
 ---
 
@@ -90,17 +107,9 @@ pnpm install              # install dependencies
 pnpm gh-deploy            # build and push to gh-pages branch
 ```
 
-The `gh-deploy` script does the following automatically:
+The `gh-deploy` script builds the Vite frontend with `GITHUB_PAGES=true` (sets the `/card-generator/` base path) and pushes `dist/public/` to the `gh-pages` branch. The live site will be available at **https://AlannaBurke.github.io/card-generator/** within about 60 seconds.
 
-1. Builds the Vite frontend with `GITHUB_PAGES=true` (sets the `/card-generator/` base path)
-2. Removes the `__manus__` debug folder from the output
-3. Pushes the `dist/public/` directory to the `gh-pages` branch using the `gh-pages` npm package
-
-The live site will be available at **https://AlannaBurke.github.io/card-generator/** within about 60 seconds.
-
-### Why `pnpm gh-deploy` and not `pnpm deploy`
-
-`deploy` is a reserved command in pnpm workspaces. The script is named `gh-deploy` to avoid the conflict.
+> **Note:** `deploy` is a reserved command in pnpm workspaces. The script is named `gh-deploy` to avoid the conflict.
 
 ### SPA Routing
 
@@ -114,20 +123,19 @@ The repository includes `client/public/404.html` and a redirect decode script in
 
 ### Steps
 
-**1. Create a Railway account** at [railway.app](https://railway.app) and install the CLI if you prefer terminal-based deploys (`npm install -g @railway/cli`).
+**1. Create a Railway account** at [railway.app](https://railway.app).
 
-**2. Provision a MySQL database.** In your Railway project dashboard, click **+ New** → **Database** → **MySQL**. Railway will create a database and expose a `DATABASE_URL` variable automatically.
+**2. Provision a MySQL database.** In your Railway project dashboard, click **+ New** → **Database** → **MySQL**. Railway creates the database and exposes a `DATABASE_URL` variable automatically.
 
-**3. Create a new service from GitHub.** Click **+ New** → **GitHub Repo** → select `AlannaBurke/card-generator`. Railway detects the `package.json` and uses `pnpm build` + `pnpm start` automatically.
+**3. Create a new service from GitHub.** Click **+ New** → **GitHub Repo** → select `AlannaBurke/card-generator`. Railway detects `package.json` and uses `pnpm build` + `pnpm start` automatically.
 
 **4. Set environment variables.** In the service settings, go to **Variables** and add:
 
 | Variable | Value |
 |---|---|
-| `DATABASE_URL` | Auto-populated from the MySQL service (use the `${{MySQL.DATABASE_URL}}` reference) |
-| `JWT_SECRET` | A long random string (e.g. output of `openssl rand -hex 32`) |
-| `BUILT_IN_FORGE_API_KEY` | Your Manus Forge API key |
-| `BUILT_IN_FORGE_API_URL` | Your Manus Forge API URL |
+| `DATABASE_URL` | Auto-populated from the MySQL service — use the `${{MySQL.DATABASE_URL}}` reference |
+| `JWT_SECRET` | A long random string — generate with `openssl rand -hex 32` |
+| `OPENAI_API_KEY` | Your OpenAI API key (starts with `sk-...`) — required for AI Style Transfer |
 | `NODE_ENV` | `production` |
 
 **5. Run the database migration.** In the Railway service, open the **Shell** tab and run:
@@ -152,7 +160,9 @@ In your service settings, go to **Settings** → **Domains** → **Custom Domain
 
 **1. Create a Render account** at [render.com](https://render.com).
 
-**2. Provision a MySQL database.** Click **New** → **PostgreSQL** (Render's managed DB). Note: Render's managed database is PostgreSQL, not MySQL. You will need to update `DATABASE_URL` to a PostgreSQL connection string and change the Drizzle dialect from `mysql2` to `pg` in `drizzle/schema.ts` and `server/db.ts`. Alternatively, use an external MySQL provider such as [PlanetScale](https://planetscale.com) or [Aiven](https://aiven.io) and paste the connection string directly.
+**2. Provision a database.** Render's managed database is PostgreSQL, not MySQL. You have two options:
+- Use an external MySQL provider such as [PlanetScale](https://planetscale.com) (free tier available) or [Aiven](https://aiven.io) and paste the MySQL connection string as `DATABASE_URL`.
+- Switch the Drizzle dialect from `mysql2` to `pg` in `drizzle/schema.ts` and `server/db.ts` to use Render's native PostgreSQL.
 
 **3. Create a Web Service.** Click **New** → **Web Service** → connect your GitHub repo. Set:
 
@@ -163,7 +173,14 @@ In your service settings, go to **Settings** → **Domains** → **Custom Domain
 | **Start Command** | `node dist/index.js` |
 | **Node Version** | 22 |
 
-**4. Set environment variables.** In the **Environment** tab, add the same variables as listed in [Option 3](#option-3--railway-full-stack-free-tier-available) above.
+**4. Set environment variables.** In the **Environment** tab, add:
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | Your MySQL or PostgreSQL connection string |
+| `JWT_SECRET` | A long random string — generate with `openssl rand -hex 32` |
+| `OPENAI_API_KEY` | Your OpenAI API key — required for AI Style Transfer |
+| `NODE_ENV` | `production` |
 
 **5. Run the database migration.** Use the Render **Shell** tab (available on paid plans) or run `pnpm db:push` locally with the production `DATABASE_URL` set.
 
@@ -172,8 +189,6 @@ In your service settings, go to **Settings** → **Domains** → **Custom Domain
 ---
 
 ## Option 5 — Self-Hosted (VPS / cPanel)
-
-This option runs the full-stack app (with AI features) on your own infrastructure.
 
 For a traditional Linux VPS (DigitalOcean, Linode, Hetzner, etc.) or shared hosting with Node.js support.
 
@@ -199,19 +214,15 @@ The server listens on the port defined by the `PORT` environment variable (defau
 
 ### Required Environment Variables
 
-You must provide all of the following before starting the server:
-
 | Variable | Description |
 |---|---|
 | `DATABASE_URL` | MySQL connection string, e.g. `mysql://user:pass@host:3306/dbname` |
-| `JWT_SECRET` | A long random string for signing session cookies |
-| `BUILT_IN_FORGE_API_KEY` | API key for the Manus image generation service |
-| `BUILT_IN_FORGE_API_URL` | Base URL for the Manus image generation service |
+| `JWT_SECRET` | A long random string for signing session cookies — generate with `openssl rand -hex 32` |
+| `OPENAI_API_KEY` | Your OpenAI API key — required for AI Style Transfer |
+| `NODE_ENV` | Set to `production` |
 | `VITE_APP_ID` | Manus OAuth app ID (required for login; leave blank to disable auth) |
 | `OAUTH_SERVER_URL` | Manus OAuth backend URL |
 | `VITE_OAUTH_PORTAL_URL` | Manus login portal URL |
-
-> **Note:** The `BUILT_IN_FORGE_API_KEY` and `BUILT_IN_FORGE_API_URL` are Manus platform credentials. If you are self-hosting outside of Manus, you will need to replace the `server/_core/imageGeneration.ts` helper with a compatible image generation API (e.g., OpenAI DALL-E, Replicate, or Stability AI) and update the `styleTransfer` procedure in `server/routers.ts` accordingly.
 
 ### Database Migration
 
@@ -262,7 +273,7 @@ The typical update workflow is:
 2. The agent commits to `github/main` and saves a Manus checkpoint
 3. Click **Publish** in the Manus Management UI to go live
 
-For GitHub Pages, pull the latest code and run `pnpm gh-deploy` again.
+For Railway and Render, push to `main` and they redeploy automatically. For GitHub Pages, run `pnpm gh-deploy` after pulling the latest code.
 
 ---
 
@@ -272,7 +283,9 @@ For GitHub Pages, pull the latest code and run `pnpm gh-deploy` again.
 |---|---|---|
 | Blank page on GitHub Pages | Missing `base` path in Vite config | Ensure `GITHUB_PAGES=true` is set in the build script |
 | 404 on page refresh (GitHub Pages) | SPA routing not configured | Confirm `client/public/404.html` exists in the repo |
-| AI Style Transfer returns error | Backend not running | Use Manus hosted deployment; GitHub Pages has no backend |
+| AI Style Transfer returns "No image generation backend configured" | Neither `OPENAI_API_KEY` nor Forge credentials are set | Add `OPENAI_API_KEY` to your environment variables |
+| AI Style Transfer returns OpenAI error | Invalid or expired API key | Check your key at [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
 | "Please login" error loop | OAuth misconfigured | Check `VITE_APP_ID` and `OAUTH_SERVER_URL` env vars |
 | Images missing on card download | CORS on CDN assets | All assets are served from `d2xsxph8kpxj0f.cloudfront.net` with CORS enabled; check browser console for specific errors |
 | Database connection refused | Wrong `DATABASE_URL` | Verify the connection string and that the database allows connections from your server's IP |
+| Cold start delay on Render free tier | Service spun down after inactivity | Upgrade to a paid Render plan, or use Railway which does not spin down |
